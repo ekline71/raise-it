@@ -44,6 +44,97 @@
     color:#8a6a1c;
     text-transform:uppercase;
   }
+  .season-wrap{
+    width:min(94vw, 360px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin-top:12px;
+  }
+  .season-row{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    font-size:16px;
+  }
+  .season-record{ color:#fff; font-weight:700; }
+  .season-sep{ color:#444; }
+  .season-bar-track{
+    width:100%;
+    height:10px;
+    margin-top:10px;
+    border-radius:6px;
+    background:#1a1a1a;
+    border:1px solid #2e2e2e;
+    overflow:hidden;
+  }
+  .season-bar-fill{
+    height:100%;
+    width:0%;
+    background-image:repeating-linear-gradient(
+      135deg,
+      #FFC72C 0px, #FFC72C 8px,
+      #000000 8px, #000000 16px
+    );
+    background-size:22.6px 22.6px;
+    border-radius:6px;
+    transition:width 0.6s ease;
+    animation:stripe-march 1s linear infinite;
+  }
+  @keyframes stripe-march{
+    from{ background-position:0 0; }
+    to{ background-position:22.6px 0; }
+  }
+  .season-bar-label{
+    margin-top:6px;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:0.1em;
+    color:#8a6a1c;
+    text-transform:uppercase;
+  }
+  .season-playoff{ color:#FFC72C; font-weight:600; }
+  .last5-wrap{
+    width:min(94vw, 360px);
+    margin-top:20px;
+  }
+  .last5-title{
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:#8a6a1c;
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .last5-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 10px;
+    background:rgba(22,22,22,0.98);
+    border:1px solid #2e2e2e;
+    border-radius:8px;
+    margin-bottom:6px;
+    font-size:13px;
+  }
+  .last5-row:last-child{ margin-bottom:0; }
+  .l5-date{ color:#666; width:44px; flex-shrink:0; }
+  .l5-opp{ color:#fff; font-weight:600; flex:1; }
+  .l5-score{ color:#fff; font-variant-numeric:tabular-nums; flex-shrink:0; }
+  .l5-result{
+    font-weight:700; font-size:11px;
+    width:20px; height:20px; line-height:20px;
+    text-align:center; border-radius:4px; flex-shrink:0;
+  }
+  .l5-result.win{ color:#000; background:#FFC72C; }
+  .l5-result.loss{ color:#fff; background:#333; }
+  .l5-cone-slot{
+    width:22px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .last5-empty{
+    font-size:11px; color:#666; text-align:center; padding:12px 0;
+  }
   footer{
     margin-top:auto;
     padding-top:36px;
@@ -60,6 +151,15 @@
   <div class="sub">Pirates win probability, live</div>
   <div id="stage"><canvas id="canvas"></canvas></div>
   <div class="updated" id="updated">LOADING&hellip;</div>
+  <div class="season-wrap">
+    <div class="season-row" id="seasonRow"></div>
+    <div class="season-bar-track"><div class="season-bar-fill" id="seasonBarFill"></div></div>
+    <div class="season-bar-label">Buctober Loading&hellip;</div>
+  </div>
+  <div class="last5-wrap">
+    <div class="last5-title">Last 5 Games</div>
+    <div id="last5"></div>
+  </div>
 </div>
 <footer>UPDATES EVERY 30S &middot; DATA VIA MLB STATS API</footer>
 
@@ -158,16 +258,61 @@ async function fetchNextGame(){
   }
   return null;
 }
-async function fetchWinProb(gamePk, piratesAreHome){
+async function fetchLastGames(count=5){
+  const today = new Date();
+  const endDate = today.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+  const start = new Date(today);
+  start.setDate(today.getDate()-21);
+  const startDate = start.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${TEAM_ID}&startDate=${startDate}&endDate=${endDate}&hydrate=team`;
   try{
-    const url = `https://statsapi.mlb.com/api/v1/game/${gamePk}/contextMetrics`;
     const res = await fetch(url);
     const data = await res.json();
-    const homeWP = data.homeWinProbability;
-    const awayWP = data.awayWinProbability;
-    if(piratesAreHome && homeWP != null) return Math.round(homeWP);
-    if(!piratesAreHome && awayWP != null) return Math.round(awayWP);
+    const games = [];
+    for(const d of data.dates ?? []){
+      for(const g of d.games ?? []){
+        if(isFinalStatus(g.status.detailedState)) games.push(g);
+      }
+    }
+    games.sort((a,b) => new Date(b.gameDate) - new Date(a.gameDate));
+    return games.slice(0, count);
+  }catch{ return []; }
+}
+async function fetchSeasonInfo(){
+  try{
+    const url = `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/pit`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const overall = (data.team?.record?.items ?? []).find(i => i.type === 'total');
+    const record = overall?.summary ?? null;
+    const playoffPct = overall?.stats?.find(s => s.name === 'playoffPercent')?.value ?? null;
+    return { record, playoffPct };
+  }catch{ return { record: null, playoffPct: null }; }
+}
+let espnEventCache = { gamePk: null, eventId: null };
+async function fetchEspnEventId(dateStr, teamAbbr){
+  try{
+    const url = `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=${dateStr}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    for(const ev of data.events ?? []){
+      const competitors = ev.competitions?.[0]?.competitors ?? [];
+      if(competitors.some(c => c.team?.abbreviation === teamAbbr)) return ev.id;
+    }
     return null;
+  }catch{ return null; }
+}
+async function fetchEspnWinProb(eventId){
+  const base = `https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/${eventId}/competitions/${eventId}/probabilities`;
+  try{
+    const countRes = await fetch(`${base}?limit=1`);
+    const countData = await countRes.json();
+    const count = countData.count ?? 0;
+    if(count === 0) return null;
+
+    const lastRes = await fetch(`${base}?limit=1&page=${count}`);
+    const lastData = await lastRes.json();
+    return lastData.items?.[0]?.homeWinPercentage ?? null;
   }catch{ return null; }
 }
 
@@ -440,11 +585,15 @@ function drawScorebug(canvasWv, canvasHv, game, nextGame, liveLS, piratesLogo, g
   const awayScore = displayGame.teams.away.score ?? 0;
   const homeScore = displayGame.teams.home.score ?? 0;
   const scorePt = 17, pad = 10;
+  const abbrBoxW = scoreW - pad*2 - 32;
+  const abbrCX = bugX + pad + abbrBoxW/2;
+  const row1CY = bugY + bugH*0.25;
+  const row2CY = bugY + bugH*0.75;
 
-  drawLeftText(awayAbbr, bugX+pad, row1Y+1, scorePt, true, WHITE, scoreW-pad*2-32);
+  drawTC(awayAbbr, abbrCX, row1CY, scorePt, true, WHITE, 'middle');
   if(isLive || isFinal) drawLeftText(`${awayScore}`, midX-pad-32, row1Y+1, scorePt, true, WHITE, 32);
 
-  drawLeftText(homeAbbr, bugX+pad, row2Y+1, scorePt, true, GOLD, scoreW-pad*2-32);
+  drawTC(homeAbbr, abbrCX, row2CY, scorePt, true, GOLD, 'middle');
   if(isLive || isFinal) drawLeftText(`${homeScore}`, midX-pad-32, row2Y+1, scorePt, true, GOLD, 32);
 
   const ls = isLive ? (liveLS ?? game?.linescore) : null;
@@ -453,14 +602,17 @@ function drawScorebug(canvasWv, canvasHv, game, nextGame, liveLS, piratesLogo, g
   const onSecond = isLive && !!(ls?.offense?.second);
   const onThird = isLive && !!(ls?.offense?.third);
   const secCX = midX + basesW*0.5;
-  const baseCY = centerY - 4;
   const dSize = 8;
+  const outR = 5, outGap = 14;
+  const topExtent = dSize*2.85;
+  const bottomExtent = dSize*2.4 + outR;
+  const baseCY = centerY - (bottomExtent - topExtent)/2;
 
   drawDiamond(secCX, baseCY-dSize*1.85, dSize, onSecond);
   drawDiamond(secCX-dSize*1.85, baseCY, dSize, onThird);
   drawDiamond(secCX+dSize*1.85, baseCY, dSize, onFirst);
 
-  const outR = 5, outGap = 14, outY = baseCY + dSize*2.4;
+  const outY = baseCY + dSize*2.4;
   for(let i=0;i<2;i++){
     const ox = i===0 ? secCX-outGap/2 : secCX+outGap/2;
     ctx.beginPath();
@@ -510,6 +662,51 @@ function drawScorebug(canvasWv, canvasHv, game, nextGame, liveLS, piratesLogo, g
   }
 }
 
+const CONE_SVG = `<svg class="l5-cone" width="20" height="28" viewBox="0 0 42 59" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="18,0 24,0 37,52 5,52" fill="#FF6B00"/>
+  <polygon points="14.4,14.6 27.6,14.6 29.5,21.8 12.5,21.8" fill="#fff"/>
+  <polygon points="10.9,28.6 31.2,28.6 33.1,36.4 8.9,36.4" fill="#fff"/>
+  <rect x="0" y="52" width="42" height="7" rx="2" fill="#888888"/>
+</svg>`;
+
+function renderLast5(games){
+  const el = document.getElementById('last5');
+  if(!games.length){
+    el.innerHTML = `<div class="last5-empty">No recent games found</div>`;
+    return;
+  }
+  el.innerHTML = games.map(g => {
+    const piratesHome = g.teams.home.team.id === TEAM_ID;
+    const pit = piratesHome ? g.teams.home : g.teams.away;
+    const opp = piratesHome ? g.teams.away : g.teams.home;
+    const pitScore = pit.score ?? 0;
+    const oppScore = opp.score ?? 0;
+    const win = pitScore > oppScore;
+    const oppAbbr = getAbbr(opp);
+    const dateStr = new Date(g.gameDate).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/New_York"});
+    const vsAt = piratesHome ? "vs" : "@";
+    return `<div class="last5-row">
+      <span class="l5-date">${dateStr}</span>
+      <span class="l5-opp">${vsAt} ${oppAbbr}</span>
+      <span class="l5-score">${pitScore}-${oppScore}</span>
+      <span class="l5-result ${win ? 'win' : 'loss'}">${win ? 'W' : 'L'}</span>
+      <span class="l5-cone-slot">${win ? CONE_SVG : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderSeasonInfo(info){
+  const rowEl = document.getElementById('seasonRow');
+  const fillEl = document.getElementById('seasonBarFill');
+  if(!info?.record){ rowEl.innerHTML = ''; fillEl.style.width = '0%'; return; }
+  const pct = info.playoffPct != null ? Math.round(info.playoffPct) : null;
+  const playoffHtml = pct != null
+    ? `<span class="season-sep">&middot;</span><span class="season-playoff">${pct}% chance of Buctober</span>`
+    : '';
+  rowEl.innerHTML = `<span class="season-record">${info.record}</span>${playoffHtml}`;
+  fillEl.style.width = `${pct ?? 0}%`;
+}
+
 function loadImagePromise(url){
   return new Promise((resolve) => {
     const img = new Image();
@@ -548,9 +745,23 @@ async function run(){
       const onThird = !!(liveLS?.offense?.third);
       const outs = liveLS?.outs ?? 0;
 
-      const mlbProb = await fetchWinProb(todayGame.gamePk, piratesHome);
-      if(mlbProb !== null){
-        winProb = mlbProb;
+      if(espnEventCache.gamePk !== todayGame.gamePk){
+        const etDateStr = new Date().toLocaleDateString("en-CA",{timeZone:"America/New_York"}).replace(/-/g, "");
+        const eventId = await fetchEspnEventId(etDateStr, "PIT");
+        espnEventCache = { gamePk: todayGame.gamePk, eventId };
+      }
+
+      let espnProb = null;
+      if(espnEventCache.eventId){
+        const homeWinPct = await fetchEspnWinProb(espnEventCache.eventId);
+        if(homeWinPct != null){
+          const piratesPct = piratesHome ? homeWinPct : (1 - homeWinPct);
+          espnProb = Math.round(piratesPct * 100);
+        }
+      }
+
+      if(espnProb !== null){
+        winProb = espnProb;
       }else{
         winProb = calcWinProbability(pitScore, oppScore, inning, half, piratesHome, onFirst, onSecond, onThird, outs);
       }
@@ -581,7 +792,13 @@ async function run(){
 
   winProb = Math.max(0, Math.min(100, isNaN(winProb) ? 50 : winProb));
 
-  const piratesLogo = await loadImagePromise(logoUrl("pit"));
+  const [piratesLogo, lastGames, seasonInfo] = await Promise.all([
+    loadImagePromise(logoUrl("pit")),
+    fetchLastGames(5),
+    fetchSeasonInfo(),
+  ]);
+  renderLast5(lastGames);
+  renderSeasonInfo(seasonInfo);
 
   // ---- render ----
   ctx.clearRect(0,0,canvasW,canvasH);
