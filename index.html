@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Hoist-O-Meter</title>
+<style>
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:#000;
+    display:flex; flex-direction:column; align-items:center;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    color:#fff;
+  }
+  .wrap{
+    display:flex; flex-direction:column; align-items:center;
+    padding:24px 16px 40px;
+    width:100%;
+  }
+  h1{
+    font-size:20px;
+    letter-spacing:0.04em;
+    color:#FFC72C;
+    margin:0 0 2px;
+    text-transform:uppercase;
+  }
+  .sub{
+    font-size:12px;
+    color:#666;
+    margin-bottom:18px;
+  }
+  #stage{
+    width:min(94vw, 360px);
+    aspect-ratio:360/354;
+    border-radius:14px;
+    overflow:hidden;
+    background:#000;
+  }
+  canvas{ width:100%; height:100%; display:block; }
+  .updated{
+    margin-top:14px;
+    font-size:10px;
+    letter-spacing:0.1em;
+    color:#8a6a1c;
+    text-transform:uppercase;
+  }
+  footer{
+    margin-top:auto;
+    padding-top:36px;
+    font-size:10px;
+    color:#444;
+    letter-spacing:0.05em;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The Hoist-O-Meter</h1>
+  <div class="sub">Pirates win probability, live</div>
+  <div id="stage"><canvas id="canvas"></canvas></div>
+  <div class="updated" id="updated">LOADING&hellip;</div>
+</div>
+<footer>UPDATES EVERY 30S &middot; DATA VIA MLB STATS API</footer>
+
+<script>
+const TEAM_ID = 134;
+
+const GOLD    = "#FFC72C";
+const BLACK   = "#000000";
+const WHITE   = "#FFFFFF";
+const DIM     = "#666666";
+const RED     = "#FF3B30";
+const CARD_BG = "rgba(22,22,22,0.98)";
+const DIVIDER = "#2e2e2e";
+
+const teamAbbrMap = {
+  134:"PIT",113:"CIN",112:"CHC",158:"MIL",138:"STL",
+  137:"SF", 119:"LAD",121:"NYM",143:"PHI",144:"ATL",
+  146:"MIA",120:"WSH",109:"ARI",115:"COL",135:"SD",
+  108:"LAA",117:"HOU",133:"OAK",136:"SEA",140:"TEX",
+  116:"DET",118:"KC", 142:"MIN",145:"CWS",114:"CLE",
+  110:"BAL",111:"BOS",147:"NYY",139:"TB", 141:"TOR",
+};
+
+function getAbbr(teamData){
+  return teamData.team?.abbreviation
+    || teamAbbrMap[teamData.team?.id]
+    || (teamData.team?.name ?? "???").substring(0,3).toUpperCase();
+}
+function logoUrl(abbr){ return `https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png`; }
+
+function hexToRgba(hex, alpha=1){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16);
+  const g = parseInt(h.substring(2,4),16);
+  const b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function isFinalStatus(status){
+  return status.includes("Final") || status === "Game Over" || status === "Completed Early";
+}
+
+// ---- win state cache (localStorage stand-in for FileManager) ----
+function getMidnightET(){
+  const etDate = new Date().toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+  return new Date(`${etDate}T23:59:59-04:00`).getTime();
+}
+function saveWinState(piratesWon, game){
+  try{
+    localStorage.setItem("pirates_win_state", JSON.stringify({
+      piratesWon, expiresAt:getMidnightET(), gamePk:game?.gamePk
+    }));
+  }catch{}
+}
+function loadWinState(){
+  try{
+    const raw = localStorage.getItem("pirates_win_state");
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(Date.now() > data.expiresAt){ localStorage.removeItem("pirates_win_state"); return null; }
+    return data;
+  }catch{ return null; }
+}
+
+// ---- MLB API ----
+async function fetchTodayGame(){
+  const etDate = new Date().toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${TEAM_ID}&date=${etDate}&hydrate=linescore,team`;
+  try{
+    const res = await fetch(url);
+    const data = await res.json();
+    if(!data.dates || data.dates.length === 0) return null;
+    return data.dates[0].games[0];
+  }catch{ return null; }
+}
+async function fetchLiveFeed(gamePk){
+  try{
+    const url = `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data?.liveData?.linescore ?? null;
+  }catch{ return null; }
+}
+async function fetchNextGame(){
+  const today = new Date();
+  for(let i=1;i<=14;i++){
+    const d = new Date(today);
+    d.setDate(today.getDate()+i);
+    const dateStr = d.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+    const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${TEAM_ID}&date=${dateStr}&hydrate=team`;
+    try{
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data.dates && data.dates.length > 0) return data.dates[0].games[0];
+    }catch{}
+  }
+  return null;
+}
+async function fetchWinProb(gamePk, piratesAreHome){
+  try{
+    const url = `https://statsapi.mlb.com/api/v1/game/${gamePk}/contextMetrics`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const homeWP = data.homeWinProbability;
+    const awayWP = data.awayWinProbability;
+    if(piratesAreHome && homeWP != null) return Math.round(homeWP);
+    if(!piratesAreHome && awayWP != null) return Math.round(awayWP);
+    return null;
+  }catch{ return null; }
+}
+
+// ---- RE24 win probability model (unchanged) ----
+const RE_MATRIX = {
+  "000-0":0.481,"000-1":0.254,"000-2":0.098,
+  "100-0":0.859,"100-1":0.509,"100-2":0.224,
+  "010-0":1.100,"010-1":0.664,"010-2":0.319,
+  "110-0":1.473,"110-1":0.908,"110-2":0.429,
+  "001-0":1.350,"001-1":0.971,"001-2":0.385,
+  "101-0":1.784,"101-1":1.130,"101-2":0.478,
+  "011-0":1.962,"011-1":1.376,"011-2":0.580,
+  "111-0":2.282,"111-1":1.520,"111-2":0.752,
+};
+function calcWinProbability(piratesScore, oppScore, inning, halfInning,
+                             isPiratesHome, onFirst, onSecond, onThird, outs){
+  const scoreDiff = piratesScore - oppScore;
+
+  if(inning >= 10){
+    const isLastAtBat = isPiratesHome && halfInning === "Bottom";
+    if(isLastAtBat){
+      if(scoreDiff > 0) return 97;
+      if(scoreDiff === 0) return 50;
+      if(scoreDiff === -1) return 28;
+      if(scoreDiff === -2) return 12;
+      return 4;
+    }
+    if(scoreDiff > 0) return 72;
+    if(scoreDiff === 0) return 50;
+    if(scoreDiff === -1) return 30;
+    return 12;
+  }
+
+  const inningNum = Math.min(inning, 9);
+  const isLastAtBat = isPiratesHome && halfInning === "Bottom" && inningNum >= 9;
+  if(isLastAtBat){
+    if(scoreDiff > 0) return 97;
+    if(scoreDiff === 0) return 50;
+    if(scoreDiff === -1) return 22;
+    if(scoreDiff === -2) return 10;
+    if(scoreDiff === -3) return 4;
+    return 3;
+  }
+
+  let halfRemaining = halfInning === "Top" ? (9-inningNum)*2+1 : (9-inningNum)*2;
+  halfRemaining = Math.max(halfRemaining, 0);
+
+  const key = `${onFirst?1:0}${onSecond?1:0}${onThird?1:0}-${Math.min(outs,2)}`;
+  const currentRE = RE_MATRIX[key] ?? 0.25;
+  const futureRE = halfRemaining * 0.481;
+  const totalRE = currentRE + futureRE;
+  const piratesBatting = (isPiratesHome && halfInning === "Bottom") || (!isPiratesHome && halfInning === "Top");
+  let adj = scoreDiff;
+  if(piratesBatting) adj += currentRE * 0.3; else adj -= currentRE * 0.3;
+  let prob = 1/(1+Math.exp(-(adj/Math.max(totalRE,0.5))*2.8));
+  prob = Math.max(0.02, Math.min(0.98, prob));
+  return Math.round(prob*100);
+}
+
+// ---- canvas setup ----
+const canvasW = 360, canvasH = 354;
+const canvas = document.getElementById('canvas');
+const dpr = window.devicePixelRatio || 1;
+canvas.width = canvasW * dpr;
+canvas.height = canvasH * dpr;
+const ctx = canvas.getContext('2d');
+ctx.scale(dpr, dpr);
+
+function drawTC(text, cx, y, fontSize, bold, color, baseline='top'){
+  ctx.font = `${bold ? '700' : '400'} ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = baseline;
+  ctx.fillText(text, cx, y);
+}
+function drawLeftText(text, x, y, fontSize, bold, color, maxWidth){
+  ctx.font = `${bold ? '700' : '400'} ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y, maxWidth);
+}
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+function drawDiamond(cx, cy, size, occupied){
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-size);
+  ctx.lineTo(cx+size, cy);
+  ctx.lineTo(cx, cy+size);
+  ctx.lineTo(cx-size, cy);
+  ctx.closePath();
+  ctx.fillStyle = occupied ? GOLD : "#222222";
+  ctx.fill();
+  ctx.strokeStyle = "#555555";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawTrafficCone(cx, baseY, scale=1.0){
+  const coneH = 52*scale, coneTopW = 6*scale, coneBotW = 32*scale;
+  const plateW = 42*scale, plateH = 7*scale;
+  const coneTopY = baseY - plateH - coneH;
+  const coneBotY = baseY - plateH;
+
+  roundRect(cx-plateW/2, baseY-plateH, plateW, plateH, 2);
+  ctx.fillStyle = "#888888";
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx-coneTopW/2, coneTopY);
+  ctx.lineTo(cx+coneTopW/2, coneTopY);
+  ctx.lineTo(cx+coneBotW/2, coneBotY);
+  ctx.lineTo(cx-coneBotW/2, coneBotY);
+  ctx.closePath();
+  ctx.fillStyle = "#FF6B00";
+  ctx.fill();
+
+  const trapAt = (topFrac, botFrac, color) => {
+    const sTopY = coneTopY + coneH*topFrac;
+    const sBotY = coneTopY + coneH*botFrac;
+    const w1 = coneTopW + (coneBotW-coneTopW) * ((sTopY-coneTopY)/coneH);
+    const w2 = coneTopW + (coneBotW-coneTopW) * ((sBotY-coneTopY)/coneH);
+    ctx.beginPath();
+    ctx.moveTo(cx-w1/2, sTopY);
+    ctx.lineTo(cx+w1/2, sTopY);
+    ctx.lineTo(cx+w2/2, sBotY);
+    ctx.lineTo(cx-w2/2, sBotY);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
+  trapAt(0.28,0.42,WHITE);
+  trapAt(0.55,0.70,WHITE);
+  trapAt(0.00,0.28,"#FF6B00");
+  trapAt(0.42,0.55,"#FF6B00");
+  trapAt(0.70,1.00,"#FF6B00");
+}
+
+function drawFlag(poleX, flagY, flagW, flagH){
+  const safeY = Math.max(4, flagY);
+  roundRect(poleX, safeY, flagW, flagH, 3);
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fill();
+  ctx.strokeStyle = hexToRgba(GOLD, 0.5);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  const coneCX = poleX + flagW*0.5;
+  const totalConeH = (52+7)*1.25;
+  const coneBase = safeY + (flagH+totalConeH)/2;
+  drawTrafficCone(coneCX, coneBase, 1.25);
+}
+
+function drawFireworks(bugY){
+  const bursts = [
+    {cx:canvasW*0.15, cy:canvasH*0.12, r:28, color:GOLD},
+    {cx:canvasW*0.82, cy:canvasH*0.08, r:22, color:"#FF4444"},
+    {cx:canvasW*0.60, cy:canvasH*0.18, r:18, color:GOLD},
+    {cx:canvasW*0.25, cy:canvasH*0.30, r:14, color:WHITE},
+    {cx:canvasW*0.88, cy:canvasH*0.28, r:20, color:GOLD},
+    {cx:canvasW*0.45, cy:canvasH*0.08, r:16, color:"#FF8800"},
+    {cx:canvasW*0.70, cy:canvasH*0.35, r:12, color:WHITE},
+    {cx:canvasW*0.10, cy:canvasH*0.45, r:10, color:GOLD},
+  ];
+  for(const b of bursts){
+    if(b.cy + b.r > bugY - 10) continue;
+    for(let i=0;i<12;i++){
+      const angle = (i/12) * Math.PI*2;
+      const x1 = b.cx + Math.cos(angle)*b.r*0.25;
+      const y1 = b.cy + Math.sin(angle)*b.r*0.25;
+      const x2 = b.cx + Math.cos(angle)*b.r;
+      const y2 = b.cy + Math.sin(angle)*b.r;
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x2,y2);
+      ctx.strokeStyle = hexToRgba(b.color, 0.85);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x2,y2,2,0,Math.PI*2);
+      ctx.fillStyle = b.color;
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(b.cx,b.cy,4,0,Math.PI*2);
+    ctx.fillStyle = b.color;
+    ctx.fill();
+  }
+}
+
+function drawHoistBanner(bugY){
+  const fontSize = 18, bannerH = 38, margin = 16;
+  const bannerX = margin, bannerW = canvasW - margin*2;
+  const bannerY = bugY - 54;
+  const bannerCX = bannerX + bannerW/2;
+
+  roundRect(bannerX, bannerY, bannerW, bannerH, 8);
+  ctx.fillStyle = GOLD;
+  ctx.fill();
+
+  drawTC("HOIST THE CONE", bannerCX, bannerY + bannerH/2, fontSize, true, BLACK, 'middle');
+}
+
+function drawScorebug(canvasWv, canvasHv, game, nextGame, liveLS, piratesLogo, gameStatus){
+  const bugH = 80, bugX = 12, bugW = canvasWv - 24, bugY = canvasHv - bugH - 18;
+  const isLive = gameStatus === "live";
+  const isFinal = gameStatus === "pirates_win" || gameStatus === "pirates_loss";
+  const isNext = gameStatus === "next_game";
+  const piratesWin = gameStatus === "pirates_win";
+
+  roundRect(bugX, bugY, bugW, bugH, 10);
+  ctx.fillStyle = CARD_BG;
+  ctx.fill();
+  ctx.strokeStyle = piratesWin ? GOLD : DIVIDER;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const scoreW = bugW*0.34;
+  const midX = bugX + scoreW;
+  const basesW = bugW*0.24;
+  const innX = midX + basesW;
+  const innW = bugW*0.18;
+  const logoX = innX + innW;
+  const logoW = bugW - (logoX - bugX);
+  const innCX = innX + innW/2;
+  const logoCX = logoX + logoW/2;
+  const logoCY = bugY + bugH/2;
+  const row1Y = bugY + 8;
+  const row2Y = bugY + bugH/2 + 4;
+  const centerY = bugY + bugH/2;
+
+  for(const vx of [midX, innX, logoX]){
+    ctx.beginPath();
+    ctx.moveTo(vx, bugY+12);
+    ctx.lineTo(vx, bugY+bugH-12);
+    ctx.strokeStyle = DIVIDER;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(bugX+6, centerY);
+  ctx.lineTo(midX-6, centerY);
+  ctx.strokeStyle = "#444444";
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  if(piratesLogo && piratesLogo.complete && piratesLogo.naturalWidth){
+    const logoSize = Math.min(logoW, bugH) - 12;
+    ctx.drawImage(piratesLogo, logoCX-logoSize/2, logoCY-logoSize/2, logoSize, logoSize);
+  }
+
+  const displayGame = (isNext && nextGame) ? nextGame : game;
+  if(!displayGame){
+    drawTC("LOADING...", bugX + bugW*0.42, centerY-8, 11, true, DIM);
+    return;
+  }
+
+  const awayAbbr = getAbbr(displayGame.teams.away);
+  const homeAbbr = getAbbr(displayGame.teams.home);
+  const awayScore = displayGame.teams.away.score ?? 0;
+  const homeScore = displayGame.teams.home.score ?? 0;
+  const scorePt = 17, pad = 10;
+
+  drawLeftText(awayAbbr, bugX+pad, row1Y+1, scorePt, true, WHITE, scoreW-pad*2-32);
+  if(isLive || isFinal) drawLeftText(`${awayScore}`, midX-pad-32, row1Y+1, scorePt, true, WHITE, 32);
+
+  drawLeftText(homeAbbr, bugX+pad, row2Y+1, scorePt, true, GOLD, scoreW-pad*2-32);
+  if(isLive || isFinal) drawLeftText(`${homeScore}`, midX-pad-32, row2Y+1, scorePt, true, GOLD, 32);
+
+  const ls = isLive ? (liveLS ?? game?.linescore) : null;
+  const outs = ls?.outs ?? 0;
+  const onFirst = isLive && !!(ls?.offense?.first);
+  const onSecond = isLive && !!(ls?.offense?.second);
+  const onThird = isLive && !!(ls?.offense?.third);
+  const secCX = midX + basesW*0.5;
+  const baseCY = centerY - 4;
+  const dSize = 8;
+
+  drawDiamond(secCX, baseCY-dSize*1.85, dSize, onSecond);
+  drawDiamond(secCX-dSize*1.85, baseCY, dSize, onThird);
+  drawDiamond(secCX+dSize*1.85, baseCY, dSize, onFirst);
+
+  const outR = 5, outGap = 14, outY = baseCY + dSize*2.4;
+  for(let i=0;i<2;i++){
+    const ox = i===0 ? secCX-outGap/2 : secCX+outGap/2;
+    ctx.beginPath();
+    ctx.arc(ox, outY, outR, 0, Math.PI*2);
+    ctx.fillStyle = i < outs ? RED : "#1a1a1a";
+    ctx.fill();
+    ctx.strokeStyle = RED;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  if(isLive){
+    const half = ls?.inningHalf ?? "Top";
+    const inning = ls?.currentInning ?? 1;
+    const isTop = half === "Top";
+    const sym = isTop ? "\u25B2" : "\u25BC";
+    const numPt = inning >= 10 ? 18 : 22;
+    const arrowPt = 13, innGap = 2;
+    const unitH = numPt + innGap + arrowPt;
+    const unitTopY = centerY - unitH/2;
+
+    if(isTop){
+      drawTC(sym, innCX, unitTopY, arrowPt, true, GOLD);
+      drawTC(`${inning}`, innCX, unitTopY+arrowPt+innGap, numPt, true, GOLD);
+    }else{
+      drawTC(`${inning}`, innCX, unitTopY, numPt, true, GOLD);
+      drawTC(sym, innCX, unitTopY+numPt+innGap, arrowPt, true, GOLD);
+    }
+  }else if(isFinal){
+    drawTC("FINAL", innCX, centerY-8, 11, true, DIM);
+  }else{
+    const gameDate = new Date(displayGame.gameDate);
+    const timeStr = gameDate.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true,timeZone:"America/New_York"});
+    const etToday = new Date().toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+    const gameDay = gameDate.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+    const isToday = etToday === gameDay;
+
+    if(!isToday){
+      const dayStr = gameDate.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",timeZone:"America/New_York"});
+      drawTC(dayStr, innCX, centerY-20, 9, false, DIM);
+      drawTC(timeStr, innCX, centerY-6, 11, true, GOLD);
+      drawTC("ET", innCX, centerY+8, 9, false, hexToRgba(WHITE,0.55));
+    }else{
+      drawTC(timeStr, innCX, centerY-14, 11, true, GOLD);
+      drawTC("ET", innCX, centerY+2, 9, false, hexToRgba(WHITE,0.55));
+    }
+  }
+}
+
+function loadImagePromise(url){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function run(){
+  const todayGame = await fetchTodayGame();
+  let nextGame = null;
+  let gameStatus = "next_game";
+  let winProb = 50;
+  let piratesHome = true;
+  let liveLS = null;
+  let pitScore = 0, oppScore = 0;
+
+  const cachedWin = loadWinState();
+
+  if(todayGame){
+    const status = todayGame.status.detailedState;
+    piratesHome = todayGame.teams.home.team.id === TEAM_ID;
+    pitScore = piratesHome ? (todayGame.teams.home.score ?? 0) : (todayGame.teams.away.score ?? 0);
+    oppScore = piratesHome ? (todayGame.teams.away.score ?? 0) : (todayGame.teams.home.score ?? 0);
+
+    if(status === "In Progress" || status === "Warmup" || status === "Manager Challenge" || status === "Delayed"){
+      gameStatus = "live";
+      liveLS = await fetchLiveFeed(todayGame.gamePk);
+
+      const inning = liveLS?.currentInning ?? 1;
+      const half = liveLS?.inningHalf ?? "Top";
+      const onFirst = !!(liveLS?.offense?.first);
+      const onSecond = !!(liveLS?.offense?.second);
+      const onThird = !!(liveLS?.offense?.third);
+      const outs = liveLS?.outs ?? 0;
+
+      const mlbProb = await fetchWinProb(todayGame.gamePk, piratesHome);
+      if(mlbProb !== null){
+        winProb = mlbProb;
+      }else{
+        winProb = calcWinProbability(pitScore, oppScore, inning, half, piratesHome, onFirst, onSecond, onThird, outs);
+      }
+    }else if(isFinalStatus(status)){
+      const piratesWon = pitScore > oppScore;
+      saveWinState(piratesWon, todayGame);
+      gameStatus = piratesWon ? "pirates_win" : "pirates_loss";
+      winProb = piratesWon ? 100 : 0;
+    }else{
+      gameStatus = "scheduled";
+      winProb = 50;
+      if(cachedWin){
+        gameStatus = cachedWin.piratesWon ? "pirates_win" : "pirates_loss";
+        winProb = cachedWin.piratesWon ? 100 : 0;
+      }
+    }
+  }else{
+    if(cachedWin){
+      gameStatus = cachedWin.piratesWon ? "pirates_win" : "pirates_loss";
+      winProb = cachedWin.piratesWon ? 100 : 0;
+      nextGame = await fetchNextGame();
+    }else{
+      gameStatus = "next_game";
+      winProb = 50;
+      nextGame = await fetchNextGame();
+    }
+  }
+
+  winProb = Math.max(0, Math.min(100, isNaN(winProb) ? 50 : winProb));
+
+  const piratesLogo = await loadImagePromise(logoUrl("pit"));
+
+  // ---- render ----
+  ctx.clearRect(0,0,canvasW,canvasH);
+  ctx.fillStyle = BLACK;
+  ctx.fillRect(0,0,canvasW,canvasH);
+
+  const bugH = 80;
+  const bugY = canvasH - bugH - 18;
+  const piratesWin = gameStatus === "pirates_win";
+
+  if(piratesWin) drawFireworks(bugY);
+
+  const poleX = canvasW*0.28;
+  const poleTopY = canvasH*0.04;
+  const poleBotY = bugY - 20;
+
+  ctx.beginPath();
+  ctx.moveTo(poleX+2, poleTopY);
+  ctx.lineTo(poleX+2, poleBotY);
+  ctx.strokeStyle = "rgba(0,0,0,0.4)";
+  ctx.lineWidth = 5;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(poleX, poleTopY);
+  ctx.lineTo(poleX, poleBotY);
+  ctx.strokeStyle = "#BBBBBB";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(poleX, poleTopY, 6, 0, Math.PI*2);
+  ctx.fillStyle = "#DDDDDD";
+  ctx.fill();
+
+  roundRect(poleX-15, poleBotY, 30, 10, 3);
+  ctx.fillStyle = "#999999";
+  ctx.fill();
+
+  const flagW = canvasW*0.38;
+  const flagH = canvasH*0.24;
+  const minFlagY = poleTopY + 8;
+  const maxFlagY = poleBotY - flagH - 8;
+  const rawFlagY = maxFlagY - ((winProb/100) * (maxFlagY - minFlagY));
+  const flagY = Math.max(minFlagY, Math.min(maxFlagY, rawFlagY));
+
+  drawFlag(poleX, flagY, flagW, flagH);
+
+  const probLabelX = poleX + flagW + 10;
+  drawLeftText(`${winProb}%`, probLabelX, flagY + flagH*0.35, 16, true, GOLD, canvasW-probLabelX-10);
+  drawLeftText("WIN", probLabelX, flagY + flagH*0.35 + 24, 11, false, DIM, canvasW-probLabelX-10);
+
+  if(piratesWin) drawHoistBanner(bugY);
+
+  drawScorebug(canvasW, canvasH, todayGame, nextGame, liveLS, piratesLogo, gameStatus);
+
+  document.getElementById('updated').textContent =
+    `UPDATED ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+}
+
+run();
+setInterval(run, 30000);
+</script>
+</body>
+</html>
