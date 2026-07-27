@@ -164,21 +164,27 @@
     height:auto;
     overflow:visible;
   }
-  .hater-gauge-label{
+  .hater-gauge-endlabel{
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:12px;
+    font-size:14px;
     font-weight:700;
-    fill:#111;
-    text-anchor:middle;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
   }
   #haterNeedle{ transition:transform 0.6s ease; transform-origin:160px 160px; }
   .hater-bar-label{
-    margin-top:2px;
-    font-size:14px;
-    font-weight:700;
-    letter-spacing:0.1em;
-    color:#8a6a1c;
+    margin-top:4px;
+    font-size:20px;
+    font-weight:800;
+    letter-spacing:0.03em;
+    color:#FFC72C;
     text-transform:uppercase;
+  }
+  .hater-sub{
+    margin-top:2px;
+    font-size:12px;
+    color:#888;
+    text-align:center;
   }
   .share-btn{
     position:fixed;
@@ -267,29 +273,27 @@
   <div class="hater-wrap">
     <div class="hater-title">Hater Meter</div>
     <div class="hater-streak" id="haterStreak"></div>
-    <svg class="hater-gauge" viewBox="0 0 320 184">
-      <path d="M 12.00 160.00 A 148 148 0 0 1 31.83 86.00 L 80.33 114.00 A 92 92 0 0 0 68.00 160.00 Z" fill="#2e7d32" stroke="#000" stroke-width="2"/>
-      <path d="M 31.83 86.00 A 148 148 0 0 1 86.00 31.83 L 114.00 80.33 A 92 92 0 0 0 80.33 114.00 Z" fill="#8bc34a" stroke="#000" stroke-width="2"/>
-      <path d="M 86.00 31.83 A 148 148 0 0 1 160.00 12.00 L 160.00 68.00 A 92 92 0 0 0 114.00 80.33 Z" fill="#ffd600" stroke="#000" stroke-width="2"/>
-      <path d="M 160.00 12.00 A 148 148 0 0 1 234.00 31.83 L 206.00 80.33 A 92 92 0 0 0 160.00 68.00 Z" fill="#ff9800" stroke="#000" stroke-width="2"/>
-      <path d="M 234.00 31.83 A 148 148 0 0 1 288.17 86.00 L 239.67 114.00 A 92 92 0 0 0 206.00 80.33 Z" fill="#f4511e" stroke="#000" stroke-width="2"/>
-      <path d="M 288.17 86.00 A 148 148 0 0 1 308.00 160.00 L 252.00 160.00 A 92 92 0 0 0 239.67 114.00 Z" fill="#b71c1c" stroke="#000" stroke-width="2"/>
+    <svg class="hater-gauge" viewBox="0 0 320 195">
+      <defs>
+        <linearGradient id="haterGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#4CAF50"/>
+          <stop offset="50%" stop-color="#FFC72C"/>
+          <stop offset="100%" stop-color="#FF3B30"/>
+        </linearGradient>
+      </defs>
+      <path d="M 20 160 A 140 140 0 0 1 300 160" fill="none" stroke="url(#haterGrad)" stroke-width="26" stroke-linecap="round"/>
 
-      <text class="hater-gauge-label" x="44.1" y="128.9" transform="rotate(-75 44.1 128.9)">LOCKED IN</text>
-      <text class="hater-gauge-label" x="75.1" y="75.1" transform="rotate(-45 75.1 75.1)">GRUMBLING</text>
-      <text class="hater-gauge-label" x="128.9" y="44.1" transform="rotate(-15 128.9 44.1)">AGITATED</text>
-      <text class="hater-gauge-label" x="191.1" y="44.1" transform="rotate(15 191.1 44.1)">BOILING</text>
-      <text class="hater-gauge-label" x="244.9" y="75.1" transform="rotate(45 244.9 75.1)">MELTDOWN</text>
-      <text class="hater-gauge-label" x="275.9" y="128.9" transform="rotate(75 275.9 128.9)">SELL TEAM</text>
+      <text class="hater-gauge-endlabel" x="14" y="184" text-anchor="start" fill="#4CAF50">Happy</text>
+      <text class="hater-gauge-endlabel" x="306" y="184" text-anchor="end" fill="#FF3B30">Mad</text>
 
       <g id="haterNeedle">
-        <polygon points="153,160 167,160 160,20" fill="#e53935"/>
-        <line x1="160" y1="160" x2="160" y2="20" stroke="#fff" stroke-width="2"/>
+        <line x1="160" y1="160" x2="160" y2="55" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="149,68 171,68 160,38" fill="#fff"/>
       </g>
-      <circle cx="160" cy="160" r="22" fill="#bbb" stroke="#666" stroke-width="2"/>
-      <circle cx="160" cy="160" r="10" fill="#eee"/>
+      <circle cx="160" cy="160" r="13" fill="#FFC72C" stroke="#8a6a1c" stroke-width="2"/>
     </svg>
     <div class="hater-bar-label" id="haterBarLabel">Loading&hellip;</div>
+    <div class="hater-sub" id="haterSub"></div>
   </div>
 </div>
 <footer>UPDATES EVERY 30S &middot; DATA VIA MLB STATS API</footer>
@@ -857,22 +861,24 @@ function renderSeasonInfo(info){
 }
 
 const HATER_LEVELS = [
-  { label: "Locked In",        pct: 8  },
-  { label: "Grumbling",        pct: 25 },
-  { label: "Agitated",         pct: 42 },
-  { label: "Boiling Point",    pct: 58 },
-  { label: "Full Meltdown",    pct: 75 },
-  { label: "Sell The Team",    pct: 95 },
+  { label: "Locked In",     sub: "Group chat's all fire emojis.",              pct: 8  },
+  { label: "Grumbling",     sub: "A few salty texts rolling in.",              pct: 25 },
+  { label: "Agitated",      sub: "Somebody's typing a rant.",                  pct: 42 },
+  { label: "Boiling Point", sub: "Trade rumors hitting the group chat.",       pct: 58 },
+  { label: "Full Meltdown", sub: "Group chat is on fire (the bad kind).",      pct: 75 },
+  { label: "Sell The Team", sub: "Everybody's left the group chat.",           pct: 95 },
 ];
 function renderHaterMeter(streak){
   const streakEl = document.getElementById('haterStreak');
   const needleEl = document.getElementById('haterNeedle');
   const labelEl = document.getElementById('haterBarLabel');
+  const subEl = document.getElementById('haterSub');
 
   if(!streak.count){
     streakEl.textContent = '';
-    needleEl.style.transform = 'rotate(-90deg)';
-    labelEl.textContent = 'No Games Yet';
+    needleEl.style.transform = 'rotate(0deg)';
+    labelEl.textContent = 'Dead Even';
+    subEl.textContent = "Nobody's texting anybody yet.";
     return;
   }
 
@@ -886,6 +892,7 @@ function renderHaterMeter(streak){
   const rotationDeg = 90 - needleTheta;
   needleEl.style.transform = `rotate(${rotationDeg}deg)`;
   labelEl.textContent = level.label;
+  subEl.textContent = level.sub;
 }
 
 function loadImagePromise(url){
