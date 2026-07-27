@@ -137,6 +137,36 @@
   .last5-empty{
     font-size:11px; color:#666; text-align:center; padding:12px 0;
   }
+  .hater-wrap{
+    width:min(94vw, 360px);
+    margin-top:24px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .hater-title{
+    text-align:center;
+    font-size:20px;
+    font-weight:800;
+    letter-spacing:0.02em;
+    color:#FFC72C;
+    text-transform:none;
+    margin-bottom:12px;
+  }
+  .hater-gauge{
+    width:100%;
+    max-width:230px;
+    height:auto;
+    overflow:visible;
+  }
+  .hater-gauge-endlabel{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+  }
+  #haterNeedle{ transition:transform 0.6s ease; transform-origin:160px 160px; }
   .share-btn{
     position:fixed;
     top:calc(env(safe-area-inset-top, 0px) + 12px);
@@ -221,6 +251,28 @@
     <div id="last5"></div>
   </div>
   <a class="donate-btn" href="https://ko-fi.com/hoistometer" target="_blank" rel="noopener noreferrer">Donate an ice cold IC Light</a>
+  <div class="hater-wrap">
+    <div class="hater-title">How Are The Haters Feeling?</div>
+    <svg class="hater-gauge" viewBox="0 0 320 215">
+      <defs>
+        <linearGradient id="haterGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#4CAF50"/>
+          <stop offset="50%" stop-color="#FFC72C"/>
+          <stop offset="100%" stop-color="#FF3B30"/>
+        </linearGradient>
+      </defs>
+      <path d="M 20 160 A 140 140 0 0 1 300 160" fill="none" stroke="url(#haterGrad)" stroke-width="26" stroke-linecap="round"/>
+
+      <text class="hater-gauge-endlabel" x="20" y="206" text-anchor="middle" fill="#4CAF50">Happy</text>
+      <text class="hater-gauge-endlabel" x="300" y="206" text-anchor="middle" fill="#FF3B30">Mad</text>
+
+      <g id="haterNeedle">
+        <line x1="160" y1="160" x2="160" y2="55" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="149,68 171,68 160,38" fill="#fff"/>
+      </g>
+      <circle cx="160" cy="160" r="13" fill="#FFC72C" stroke="#8a6a1c" stroke-width="2"/>
+    </svg>
+  </div>
 </div>
 <footer>UPDATES EVERY 30S &middot; DATA VIA MLB STATS API</footer>
 
@@ -319,11 +371,11 @@ async function fetchNextGame(){
   }
   return null;
 }
-async function fetchLastGames(count=5){
+async function fetchLastGames(count=5, days=21){
   const today = new Date();
   const endDate = today.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
   const start = new Date(today);
-  start.setDate(today.getDate()-21);
+  start.setDate(today.getDate()-days);
   const startDate = start.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
   const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${TEAM_ID}&startDate=${startDate}&endDate=${endDate}&hydrate=team`;
   try{
@@ -730,6 +782,24 @@ const CONE_SVG = `<svg class="l5-cone" width="20" height="28" viewBox="0 0 42 59
   <rect x="0" y="52" width="42" height="7" rx="2" fill="#888888"/>
 </svg>`;
 
+function didPiratesWin(g){
+  const piratesHome = g.teams.home.team.id === TEAM_ID;
+  const pit = piratesHome ? g.teams.home : g.teams.away;
+  const opp = piratesHome ? g.teams.away : g.teams.home;
+  return (pit.score ?? 0) > (opp.score ?? 0);
+}
+
+function computeStreak(games){
+  if(!games.length) return { count: 0, win: true };
+  const win = didPiratesWin(games[0]);
+  let count = 1;
+  for(let i=1; i<games.length; i++){
+    if(didPiratesWin(games[i]) !== win) break;
+    count++;
+  }
+  return { count, win };
+}
+
 function renderLast5(games){
   const el = document.getElementById('last5');
   if(!games.length){
@@ -766,6 +836,24 @@ function renderSeasonInfo(info){
     : '';
   rowEl.innerHTML = `<span class="season-record">${info.record}</span>${playoffHtml}`;
   fillEl.style.width = `${pct ?? 0}%`;
+}
+
+const HATER_LEVELS = [8, 25, 42, 58, 75, 95];
+function renderHaterMeter(streak){
+  const needleEl = document.getElementById('haterNeedle');
+
+  if(!streak.count){
+    needleEl.style.transform = 'rotate(0deg)';
+    return;
+  }
+
+  const pct = streak.win
+    ? HATER_LEVELS[0]
+    : HATER_LEVELS[Math.min(streak.count, HATER_LEVELS.length - 1)];
+
+  const needleTheta = 180 * (1 - pct/100);
+  const rotationDeg = 90 - needleTheta;
+  needleEl.style.transform = `rotate(${rotationDeg}deg)`;
 }
 
 function loadImagePromise(url){
@@ -853,13 +941,14 @@ async function run(){
 
   winProb = Math.max(0, Math.min(100, isNaN(winProb) ? 50 : winProb));
 
-  const [piratesLogo, lastGames, seasonInfo] = await Promise.all([
+  const [piratesLogo, recentGames, seasonInfo] = await Promise.all([
     loadImagePromise(logoUrl("pit")),
-    fetchLastGames(5),
+    fetchLastGames(20, 30),
     fetchSeasonInfo(),
   ]);
-  renderLast5(lastGames);
+  renderLast5(recentGames.slice(0, 5));
   renderSeasonInfo(seasonInfo);
+  renderHaterMeter(computeStreak(recentGames));
 
   // ---- render ----
   ctx.clearRect(0,0,canvasW,canvasH);
