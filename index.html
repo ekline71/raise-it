@@ -137,6 +137,46 @@
   .last5-empty{
     font-size:11px; color:#666; text-align:center; padding:12px 0;
   }
+  .hater-wrap{
+    width:min(94vw, 360px);
+    margin-top:24px;
+  }
+  .hater-title{
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:#8a6a1c;
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .hater-streak{
+    font-size:16px;
+    font-weight:700;
+    color:#fff;
+    margin-bottom:8px;
+  }
+  .hater-bar-track{
+    width:100%;
+    height:10px;
+    border-radius:6px;
+    background:#1a1a1a;
+    border:1px solid #2e2e2e;
+    overflow:hidden;
+  }
+  .hater-bar-fill{
+    height:100%;
+    width:0%;
+    background:#FFC72C;
+    border-radius:6px;
+    transition:width 0.6s ease, background-color 0.6s ease;
+  }
+  .hater-bar-label{
+    margin-top:6px;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:0.1em;
+    color:#8a6a1c;
+    text-transform:uppercase;
+  }
   .share-btn{
     position:fixed;
     top:calc(env(safe-area-inset-top, 0px) + 12px);
@@ -221,6 +261,12 @@
     <div id="last5"></div>
   </div>
   <a class="donate-btn" href="https://ko-fi.com/hoistometer" target="_blank" rel="noopener noreferrer">Donate an ice cold IC Light</a>
+  <div class="hater-wrap">
+    <div class="hater-title">Hater Meter</div>
+    <div class="hater-streak" id="haterStreak"></div>
+    <div class="hater-bar-track"><div class="hater-bar-fill" id="haterBarFill"></div></div>
+    <div class="hater-bar-label" id="haterBarLabel">Loading&hellip;</div>
+  </div>
 </div>
 <footer>UPDATES EVERY 30S &middot; DATA VIA MLB STATS API</footer>
 
@@ -319,11 +365,11 @@ async function fetchNextGame(){
   }
   return null;
 }
-async function fetchLastGames(count=5){
+async function fetchLastGames(count=5, days=21){
   const today = new Date();
   const endDate = today.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
   const start = new Date(today);
-  start.setDate(today.getDate()-21);
+  start.setDate(today.getDate()-days);
   const startDate = start.toLocaleDateString("en-CA",{timeZone:"America/New_York"});
   const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${TEAM_ID}&startDate=${startDate}&endDate=${endDate}&hydrate=team`;
   try{
@@ -730,6 +776,24 @@ const CONE_SVG = `<svg class="l5-cone" width="20" height="28" viewBox="0 0 42 59
   <rect x="0" y="52" width="42" height="7" rx="2" fill="#888888"/>
 </svg>`;
 
+function didPiratesWin(g){
+  const piratesHome = g.teams.home.team.id === TEAM_ID;
+  const pit = piratesHome ? g.teams.home : g.teams.away;
+  const opp = piratesHome ? g.teams.away : g.teams.home;
+  return (pit.score ?? 0) > (opp.score ?? 0);
+}
+
+function computeStreak(games){
+  if(!games.length) return { count: 0, win: true };
+  const win = didPiratesWin(games[0]);
+  let count = 1;
+  for(let i=1; i<games.length; i++){
+    if(didPiratesWin(games[i]) !== win) break;
+    count++;
+  }
+  return { count, win };
+}
+
 function renderLast5(games){
   const el = document.getElementById('last5');
   if(!games.length){
@@ -766,6 +830,43 @@ function renderSeasonInfo(info){
     : '';
   rowEl.innerHTML = `<span class="season-record">${info.record}</span>${playoffHtml}`;
   fillEl.style.width = `${pct ?? 0}%`;
+}
+
+const HATER_LEVELS = [
+  { label: "Locked In",        pct: 5  },
+  { label: "Grumbling",        pct: 25 },
+  { label: "Agitated",         pct: 45 },
+  { label: "Boiling Point",    pct: 65 },
+  { label: "Full Meltdown",    pct: 85 },
+  { label: "Sell The Team",    pct: 100 },
+];
+function lerpColor(hexA, hexB, t){
+  const a = [hexA.substring(1,3), hexA.substring(3,5), hexA.substring(5,7)].map(h=>parseInt(h,16));
+  const b = [hexB.substring(1,3), hexB.substring(3,5), hexB.substring(5,7)].map(h=>parseInt(h,16));
+  const c = a.map((v,i) => Math.round(v + (b[i]-v)*t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function renderHaterMeter(streak){
+  const streakEl = document.getElementById('haterStreak');
+  const fillEl = document.getElementById('haterBarFill');
+  const labelEl = document.getElementById('haterBarLabel');
+
+  if(!streak.count){
+    streakEl.textContent = '';
+    fillEl.style.width = '0%';
+    labelEl.textContent = 'No Games Yet';
+    return;
+  }
+
+  streakEl.textContent = `${streak.win ? 'W' : 'L'}${streak.count}`;
+
+  const level = streak.win
+    ? HATER_LEVELS[0]
+    : HATER_LEVELS[Math.min(streak.count, HATER_LEVELS.length - 1)];
+
+  fillEl.style.width = `${level.pct}%`;
+  fillEl.style.backgroundColor = lerpColor(GOLD, RED, level.pct/100);
+  labelEl.textContent = level.label;
 }
 
 function loadImagePromise(url){
@@ -853,13 +954,14 @@ async function run(){
 
   winProb = Math.max(0, Math.min(100, isNaN(winProb) ? 50 : winProb));
 
-  const [piratesLogo, lastGames, seasonInfo] = await Promise.all([
+  const [piratesLogo, recentGames, seasonInfo] = await Promise.all([
     loadImagePromise(logoUrl("pit")),
-    fetchLastGames(5),
+    fetchLastGames(20, 30),
     fetchSeasonInfo(),
   ]);
-  renderLast5(lastGames);
+  renderLast5(recentGames.slice(0, 5));
   renderSeasonInfo(seasonInfo);
+  renderHaterMeter(computeStreak(recentGames));
 
   // ---- render ----
   ctx.clearRect(0,0,canvasW,canvasH);
