@@ -250,7 +250,6 @@
     <div class="last5-title">Last 5 Games</div>
     <div id="last5"></div>
   </div>
-  <a class="donate-btn" href="https://ko-fi.com/hoistometer" target="_blank" rel="noopener noreferrer">Donate an ice cold IC Light</a>
   <div class="hater-wrap">
     <div class="hater-title">How Are The Haters Feeling?</div>
     <svg class="hater-gauge" viewBox="0 0 320 215">
@@ -273,6 +272,7 @@
       <circle cx="160" cy="160" r="13" fill="#FFC72C" stroke="#8a6a1c" stroke-width="2"/>
     </svg>
   </div>
+  <a class="donate-btn" href="https://ko-fi.com/hoistometer" target="_blank" rel="noopener noreferrer">Donate an ice cold IC Light</a>
 </div>
 <footer>UPDATES EVERY 30S &middot; DATA VIA MLB STATS API</footer>
 
@@ -847,9 +847,8 @@ function renderHaterMeter(streak){
     return;
   }
 
-  const pct = streak.win
-    ? HATER_LEVELS[0]
-    : HATER_LEVELS[Math.min(streak.count, HATER_LEVELS.length - 1)];
+  const escalation = HATER_LEVELS[Math.min(streak.count, HATER_LEVELS.length - 1)];
+  const pct = streak.win ? escalation : 100 - escalation;
 
   const needleTheta = 180 * (1 - pct/100);
   const rotationDeg = 90 - needleTheta;
