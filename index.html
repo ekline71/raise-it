@@ -167,7 +167,7 @@
     text-transform:uppercase;
   }
   #haterNeedle{ transition:transform 0.6s ease; transform-origin:160px 160px; }
-  .refresh-btn, .share-btn{
+  .refresh-btn, .share-btn, .x-post-btn{
     position:fixed;
     right:12px;
     width:38px;
@@ -184,13 +184,14 @@
   }
   .refresh-btn{ top:calc(env(safe-area-inset-top, 0px) + 12px); }
   .share-btn{ top:calc(env(safe-area-inset-top, 0px) + 60px); }
-  .refresh-btn:active, .share-btn:active{ opacity:0.7; }
-  .refresh-btn svg, .share-btn svg{ width:18px; height:18px; }
+  .x-post-btn{ top:calc(env(safe-area-inset-top, 0px) + 108px); }
+  .refresh-btn:active, .share-btn:active, .x-post-btn:active{ opacity:0.7; }
+  .refresh-btn svg, .share-btn svg, .x-post-btn svg{ width:18px; height:18px; }
   .refresh-btn.spinning svg{ animation:refresh-spin 0.6s linear; }
   @keyframes refresh-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
   .share-toast{
     position:fixed;
-    top:calc(env(safe-area-inset-top, 0px) + 104px);
+    top:calc(env(safe-area-inset-top, 0px) + 152px);
     right:12px;
     font-size:11px;
     color:#8a6a1c;
@@ -244,6 +245,11 @@
     <path d="M12 16V4"/>
     <path d="M7 9l5-5 5 5"/>
     <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>
+  </svg>
+</button>
+<button class="x-post-btn" id="xPostBtn" aria-label="Post to X">
+  <svg viewBox="0 0 24 24" fill="#FFC72C">
+    <path d="M18.24 2h3.3l-7.2 8.23L22.8 22h-6.63l-5.19-6.79L4.99 22H1.68l7.7-8.8L1 2h6.8l4.69 6.2zM17.05 20h1.83L7.03 3.9H5.06z"/>
   </svg>
 </button>
 <div class="share-toast" id="shareToast"></div>
@@ -1017,8 +1023,11 @@ async function run(){
 
   document.getElementById('updated').textContent =
     `UPDATED ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+
+  latestState = { todayGame, gameStatus, pitScore, oppScore, winProb, piratesHome, liveLS };
 }
 
+let latestState = null;
 run();
 setInterval(run, 30000);
 
@@ -1068,6 +1077,36 @@ document.getElementById('shareBtn').addEventListener('click', () => {
     URL.revokeObjectURL(url);
     showShareToast('Image downloaded');
   }, 'image/png');
+});
+
+// ---- post to X ----
+function buildXPostText(){
+  const s = latestState;
+  if(!s || !s.todayGame){
+    return `The Hoist-O-Meter: keeping tabs on the Pirates. https://hoist-o-meter.com/`;
+  }
+  const { todayGame, gameStatus, pitScore, oppScore, winProb, piratesHome, liveLS } = s;
+  const oppTeam = piratesHome ? todayGame.teams.away : todayGame.teams.home;
+  const oppAbbr = getAbbr(oppTeam);
+  const vsAt = piratesHome ? 'vs' : '@';
+
+  if(gameStatus === 'live'){
+    const half = liveLS?.inningHalf ?? 'Top';
+    const inning = liveLS?.currentInning ?? 1;
+    return `${half} ${inning} ${vsAt} ${oppAbbr}: PIT ${pitScore}-${oppScore}. Win probability: ${winProb}%. https://hoist-o-meter.com/`;
+  }
+  if(gameStatus === 'pirates_win'){
+    return `FINAL: Pirates win ${pitScore}-${oppScore} ${vsAt} ${oppAbbr}! \u{1F3F4}‍☠️ https://hoist-o-meter.com/`;
+  }
+  if(gameStatus === 'pirates_loss'){
+    return `FINAL: Pirates fall ${pitScore}-${oppScore} ${vsAt} ${oppAbbr}. https://hoist-o-meter.com/`;
+  }
+  return `Pirates ${vsAt} ${oppAbbr} coming up. https://hoist-o-meter.com/`;
+}
+document.getElementById('xPostBtn').addEventListener('click', () => {
+  const text = buildXPostText();
+  const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  window.open(intentUrl, '_blank', 'noopener,noreferrer');
 });
 </script>
 </body>
