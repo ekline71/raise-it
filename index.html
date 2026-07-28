@@ -1080,28 +1080,30 @@ document.getElementById('shareBtn').addEventListener('click', () => {
 });
 
 // ---- post to X ----
+const SITE_LINK = 'https://hoist-o-meter.com/';
 function buildXPostText(){
   const s = latestState;
   if(!s || !s.todayGame){
-    return `The Hoist-O-Meter: keeping tabs on the Pirates. https://hoist-o-meter.com/`;
+    return `The Hoist-O-Meter: keeping tabs on the Pirates.\n${SITE_LINK}`;
   }
   const { todayGame, gameStatus, pitScore, oppScore, winProb, piratesHome, liveLS } = s;
   const oppTeam = piratesHome ? todayGame.teams.away : todayGame.teams.home;
   const oppAbbr = getAbbr(oppTeam);
   const vsAt = piratesHome ? 'vs' : '@';
 
+  let caption;
   if(gameStatus === 'live'){
     const half = liveLS?.inningHalf ?? 'Top';
     const inning = liveLS?.currentInning ?? 1;
-    return `${half} ${inning} ${vsAt} ${oppAbbr}: PIT ${pitScore}-${oppScore}. Win probability: ${winProb}%. https://hoist-o-meter.com/`;
+    caption = `${half} ${inning} ${vsAt} ${oppAbbr}: PIT ${pitScore}-${oppScore}. Win probability: ${winProb}%.`;
+  }else if(gameStatus === 'pirates_win'){
+    caption = `FINAL: Pirates win ${pitScore}-${oppScore} ${vsAt} ${oppAbbr}! \u{1F3F4}‍☠️`;
+  }else if(gameStatus === 'pirates_loss'){
+    caption = `FINAL: Pirates fall ${pitScore}-${oppScore} ${vsAt} ${oppAbbr}.`;
+  }else{
+    caption = `Pirates ${vsAt} ${oppAbbr} coming up.`;
   }
-  if(gameStatus === 'pirates_win'){
-    return `FINAL: Pirates win ${pitScore}-${oppScore} ${vsAt} ${oppAbbr}! \u{1F3F4}‍☠️ https://hoist-o-meter.com/`;
-  }
-  if(gameStatus === 'pirates_loss'){
-    return `FINAL: Pirates fall ${pitScore}-${oppScore} ${vsAt} ${oppAbbr}. https://hoist-o-meter.com/`;
-  }
-  return `Pirates ${vsAt} ${oppAbbr} coming up. https://hoist-o-meter.com/`;
+  return `${caption}\n${SITE_LINK}`;
 }
 document.getElementById('xPostBtn').addEventListener('click', () => {
   const text = buildXPostText();
