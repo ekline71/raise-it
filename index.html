@@ -1058,7 +1058,7 @@ document.getElementById('shareBtn').addEventListener('click', () => {
         await navigator.share({
           files: [file],
           title: 'The Hoist-O-Meter',
-          text: 'https://hoist-o-meter.com/',
+          text: buildXPostText(),
         });
         return;
       }catch(err){
