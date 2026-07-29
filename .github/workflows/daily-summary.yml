@@ -1,0 +1,37 @@
+name: Daily Game Summary
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    inputs:
+      test_message:
+        description: 'Send a one-off test push with this message instead of the daily summary'
+        required: false
+        default: ''
+      test_title:
+        description: 'Optional title for the test push'
+        required: false
+        default: ''
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm install
+      - name: Send daily summary
+        working-directory: scripts
+        env:
+          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          TEST_MESSAGE: ${{ github.event.inputs.test_message }}
+          TEST_TITLE: ${{ github.event.inputs.test_title }}
+        run: node daily-summary.js

@@ -1,19 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const webpush = require('web-push');
+const { TEAM_ID, getAbbr, sendPush, fetchTodayGame } = require('./lib');
 
-const TEAM_ID = 134;
 const SWING_THRESHOLD = 20;
 const STATE_FILE = path.join(__dirname, 'state.json');
-
-const {
-  PUSH_SUBSCRIPTION,
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY,
-  VAPID_SUBJECT,
-} = process.env;
-
-webpush.setVapidDetails(VAPID_SUBJECT || 'mailto:admin@hoist-o-meter.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 function loadState(){
   try{
@@ -26,19 +16,6 @@ function saveState(state){
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2) + '\n');
 }
 
-const teamAbbrMap = {
-  134: 'PIT', 113: 'CIN', 112: 'CHC', 158: 'MIL', 138: 'STL',
-  137: 'SF', 119: 'LAD', 121: 'NYM', 143: 'PHI', 144: 'ATL',
-  146: 'MIA', 120: 'WSH', 109: 'ARI', 115: 'COL', 135: 'SD',
-  108: 'LAA', 117: 'HOU', 133: 'OAK', 136: 'SEA', 140: 'TEX',
-  116: 'DET', 118: 'KC', 142: 'MIN', 145: 'CWS', 114: 'CLE',
-  110: 'BAL', 111: 'BOS', 147: 'NYY', 139: 'TB', 141: 'TOR',
-};
-function getAbbr(teamData){
-  return teamData.team?.abbreviation
-    || teamAbbrMap[teamData.team?.id]
-    || (teamData.team?.name ?? '???').substring(0, 3).toUpperCase();
-}
 function isFinalStatus(status){
   return status.includes('Final') || status === 'Game Over' || status === 'Completed Early';
 }
@@ -93,14 +70,6 @@ function calcWinProbability(piratesScore, oppScore, inning, halfInning, isPirate
   return Math.round(prob * 100);
 }
 
-async function fetchTodayGame(){
-  const etDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${TEAM_ID}&date=${etDate}&hydrate=linescore,team`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if(!data.dates || data.dates.length === 0) return null;
-  return data.dates[0].games[0];
-}
 async function fetchLiveFeed(gamePk){
   const url = `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`;
   const res = await fetch(url);
@@ -126,33 +95,6 @@ async function fetchEspnWinProb(eventId){
   const lastRes = await fetch(`${base}?limit=1&page=${count}`);
   const lastData = await lastRes.json();
   return lastData.items?.[0]?.homeWinPercentage ?? null;
-}
-
-async function sendPush(payload){
-  if(!PUSH_SUBSCRIPTION){
-    console.log('No PUSH_SUBSCRIPTION configured, skipping send:', payload.body);
-    return;
-  }
-  let subs;
-  try{
-    const parsed = JSON.parse(PUSH_SUBSCRIPTION);
-    subs = Array.isArray(parsed) ? parsed : [parsed];
-  }catch{
-    console.error('PUSH_SUBSCRIPTION secret is not valid JSON');
-    return;
-  }
-
-  for(const sub of subs){
-    try{
-      await webpush.sendNotification(sub, JSON.stringify(payload));
-    }catch(err){
-      if(err.statusCode === 404 || err.statusCode === 410){
-        console.error(`Subscription expired (endpoint: ${sub.endpoint}) - remove it from PUSH_SUBSCRIPTION or have that person re-subscribe.`);
-      }else{
-        console.error('Push failed for', sub.endpoint, err.statusCode, err.body);
-      }
-    }
-  }
 }
 
 async function main(){
