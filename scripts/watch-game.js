@@ -183,9 +183,10 @@ async function main(){
   if(isFinal){
     if(!prev?.finalNotified){
       const piratesWon = pitScore > oppScore;
+      const scoreLine = `PIT ${pitScore} - ${oppAbbr} ${oppScore}`;
       const text = piratesWon
-        ? `\u{1F386} HOIST THE CONE \u{1F386}\nPirates win ${pitScore}-${oppScore} vs ${oppAbbr}!`
-        : `Pirates fall ${pitScore}-${oppScore} vs ${oppAbbr}.`;
+        ? `\u{1F386} HOIST THE CONE \u{1F386}\nPirates win: ${scoreLine}`
+        : `Pirates fall: ${scoreLine}`;
       await sendPush({ title: 'Final', body: text });
       saveState({ ...prev, gamePk: todayGame.gamePk, finalNotified: true });
     }
@@ -232,12 +233,12 @@ async function main(){
   }
 
   if(scoreChanged){
-    const text = `PIT ${pitScore}, ${oppAbbr} ${oppScore} (${half} ${inning}) · Win probability: ${winProb}%`;
+    const text = `PIT ${pitScore} - ${oppAbbr} ${oppScore} (${half} ${inning}) · Win probability: ${winProb}%`;
     await sendPush({ title: 'Score Update', body: text });
   }
 
   if(swung){
-    const text = `Now ${winProb}% · PIT ${pitScore}, ${oppAbbr} ${oppScore}`;
+    const text = `Now ${winProb}% · PIT ${pitScore} - ${oppAbbr} ${oppScore}`;
     await sendPush({ title: 'Win Probability Swing \u{1F4C8}', body: text });
   }
 
