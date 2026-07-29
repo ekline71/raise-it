@@ -593,11 +593,11 @@ function drawTC(text, cx, y, fontSize, bold, color, baseline='top'){
   ctx.textBaseline = baseline;
   ctx.fillText(text, cx, y);
 }
-function drawLeftText(text, x, y, fontSize, bold, color, maxWidth){
+function drawLeftText(text, x, y, fontSize, bold, color, maxWidth, baseline='top'){
   ctx.font = `${bold ? '700' : '400'} ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
   ctx.fillStyle = color;
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
+  ctx.textBaseline = baseline;
   ctx.fillText(text, x, y, maxWidth);
 }
 
@@ -754,8 +754,6 @@ function drawScorebug(canvasWv, canvasHv, game, nextGame, liveLS, piratesLogo, g
   const innCX = innX + innW/2;
   const logoCX = logoX + logoW/2;
   const logoCY = bugY + bugH/2;
-  const row1Y = bugY + 8;
-  const row2Y = bugY + bugH/2 + 4;
   const centerY = bugY + bugH/2;
 
   for(const vx of [midX, innX, logoX]){
@@ -796,10 +794,10 @@ function drawScorebug(canvasWv, canvasHv, game, nextGame, liveLS, piratesLogo, g
   const row2CY = bugY + bugH*0.75;
 
   drawTC(awayAbbr, abbrCX, row1CY, scorePt, true, WHITE, 'middle');
-  if(isLive || isFinal) drawLeftText(`${awayScore}`, midX-pad-32, row1Y+1, scorePt, true, WHITE, 32);
+  if(isLive || isFinal) drawLeftText(`${awayScore}`, midX-pad-32, row1CY, scorePt, true, WHITE, 32, 'middle');
 
   drawTC(homeAbbr, abbrCX, row2CY, scorePt, true, GOLD, 'middle');
-  if(isLive || isFinal) drawLeftText(`${homeScore}`, midX-pad-32, row2Y+1, scorePt, true, GOLD, 32);
+  if(isLive || isFinal) drawLeftText(`${homeScore}`, midX-pad-32, row2CY, scorePt, true, GOLD, 32, 'middle');
 
   const ls = isLive ? (liveLS ?? game?.linescore) : null;
   const outs = ls?.outs ?? 0;
