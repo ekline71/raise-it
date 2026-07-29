@@ -222,12 +222,18 @@ async function main(){
     winProb = calcWinProbability(pitScore, oppScore, inning, half, piratesHome, onFirst, onSecond, onThird, outs);
   }
 
-  const inningChanged = !prev || prev.inning !== inning || prev.half !== half;
+  const gameStarted = !prev?.started;
+  const scoreChanged = !!prev && (prev.pitScore !== pitScore || prev.oppScore !== oppScore);
   const lastNotifiedWinProb = prev?.lastNotifiedWinProb ?? winProb;
   const swung = Math.abs(winProb - lastNotifiedWinProb) >= SWING_THRESHOLD;
 
-  if(inningChanged && prev){
-    const text = `End of ${prev.half} ${prev.inning} - PIT ${pitScore}-${oppScore} vs ${oppAbbr}. Win probability: ${winProb}%.`;
+  if(gameStarted){
+    const text = `Game started - PIT vs ${oppAbbr}.`;
+    await sendPush({ title: 'The Hoist-O-Meter', body: text });
+  }
+
+  if(scoreChanged){
+    const text = `Score update: PIT ${pitScore}, ${oppAbbr} ${oppScore} (${half} ${inning}). Win probability: ${winProb}%.`;
     await sendPush({ title: 'The Hoist-O-Meter', body: text });
   }
 
@@ -238,12 +244,13 @@ async function main(){
 
   saveState({
     gamePk: todayGame.gamePk,
-    inning, half, winProb,
+    started: true,
+    pitScore, oppScore, winProb,
     lastNotifiedWinProb: swung ? winProb : lastNotifiedWinProb,
     finalNotified: false,
   });
 
-  console.log(`Checked: ${half} ${inning}, PIT ${pitScore}-${oppScore}, win% ${winProb}, inningChanged=${inningChanged}, swung=${swung}`);
+  console.log(`Checked: ${half} ${inning}, PIT ${pitScore}-${oppScore}, win% ${winProb}, gameStarted=${gameStarted}, scoreChanged=${scoreChanged}, swung=${swung}`);
 }
 
 main().catch((err) => {
