@@ -9,6 +9,10 @@ on:
         description: 'Send a one-off test push with this message instead of watching the game'
         required: false
         default: ''
+      test_title:
+        description: 'Optional title for the test push (defaults to "The Hoist-O-Meter")'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -32,6 +36,7 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           TEST_MESSAGE: ${{ github.event.inputs.test_message }}
+          TEST_TITLE: ${{ github.event.inputs.test_title }}
         run: node watch-game.js
       - name: Commit updated state
         run: |
