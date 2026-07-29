@@ -184,7 +184,7 @@ async function main(){
     if(!prev?.finalNotified){
       const piratesWon = pitScore > oppScore;
       const text = piratesWon
-        ? `Pirates win ${pitScore}-${oppScore} vs ${oppAbbr}! \u{1F3F4}‍☠️`
+        ? `HOIST THE CONE \u{1F6A7}\nPirates win ${pitScore}-${oppScore} vs ${oppAbbr}!`
         : `Pirates fall ${pitScore}-${oppScore} vs ${oppAbbr}.`;
       await sendPush({ title: 'Final', body: text });
       saveState({ ...prev, gamePk: todayGame.gamePk, finalNotified: true });
