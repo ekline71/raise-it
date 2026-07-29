@@ -183,9 +183,10 @@ async function main(){
   if(isFinal){
     if(!prev?.finalNotified){
       const piratesWon = pitScore > oppScore;
-      const title = piratesWon ? 'Pirates Win! \u{1F3F4}‍☠️' : 'Pirates Fall';
-      const text = `Final: PIT ${pitScore}, ${oppAbbr} ${oppScore}`;
-      await sendPush({ title, body: text });
+      const text = piratesWon
+        ? `Pirates win ${pitScore}-${oppScore} vs ${oppAbbr}! \u{1F3F4}‍☠️`
+        : `Pirates fall ${pitScore}-${oppScore} vs ${oppAbbr}.`;
+      await sendPush({ title: 'Final', body: text });
       saveState({ ...prev, gamePk: todayGame.gamePk, finalNotified: true });
     }
     console.log('Game final, nothing more to watch.');
@@ -227,19 +228,17 @@ async function main(){
   const swung = Math.abs(winProb - lastNotifiedWinProb) >= SWING_THRESHOLD;
 
   if(gameStarted){
-    await sendPush({ title: 'Game Started ⚾', body: `PIT vs ${oppAbbr}` });
+    await sendPush({ title: 'Game Start ⚾', body: `PIT vs ${oppAbbr}` });
   }
 
   if(scoreChanged){
-    const title = `PIT ${pitScore} - ${oppAbbr} ${oppScore}`;
-    const text = `${half} ${inning} · Win probability: ${winProb}%`;
-    await sendPush({ title, body: text });
+    const text = `PIT ${pitScore}, ${oppAbbr} ${oppScore} (${half} ${inning}) · Win probability: ${winProb}%`;
+    await sendPush({ title: 'Score Update', body: text });
   }
 
   if(swung){
-    const title = 'Win Probability Swing \u{1F4C8}';
     const text = `Now ${winProb}% · PIT ${pitScore}, ${oppAbbr} ${oppScore}`;
-    await sendPush({ title, body: text });
+    await sendPush({ title: 'Win Probability Swing \u{1F4C8}', body: text });
   }
 
   saveState({
