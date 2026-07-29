@@ -150,6 +150,12 @@ async function sendPush(payload){
 }
 
 async function main(){
+  if(process.env.TEST_MESSAGE){
+    await sendPush({ title: 'The Hoist-O-Meter', body: process.env.TEST_MESSAGE });
+    console.log('Test notification sent.');
+    return;
+  }
+
   const todayGame = await fetchTodayGame();
   if(!todayGame){
     console.log('No game today.');
