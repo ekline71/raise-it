@@ -157,7 +157,7 @@ async function sendPush(payload){
 
 async function main(){
   if(process.env.TEST_MESSAGE){
-    await sendPush({ title: 'The Hoist-O-Meter', body: process.env.TEST_MESSAGE });
+    await sendPush({ title: process.env.TEST_TITLE || 'The Hoist-O-Meter', body: process.env.TEST_MESSAGE });
     console.log('Test notification sent.');
     return;
   }
@@ -183,10 +183,9 @@ async function main(){
   if(isFinal){
     if(!prev?.finalNotified){
       const piratesWon = pitScore > oppScore;
-      const text = piratesWon
-        ? `FINAL: Pirates win ${pitScore}-${oppScore} vs ${oppAbbr}!`
-        : `FINAL: Pirates fall ${pitScore}-${oppScore} vs ${oppAbbr}.`;
-      await sendPush({ title: 'The Hoist-O-Meter', body: text });
+      const title = piratesWon ? 'Pirates Win! \u{1F3F4}‍☠️' : 'Pirates Fall';
+      const text = `Final: PIT ${pitScore}, ${oppAbbr} ${oppScore}`;
+      await sendPush({ title, body: text });
       saveState({ ...prev, gamePk: todayGame.gamePk, finalNotified: true });
     }
     console.log('Game final, nothing more to watch.');
@@ -228,18 +227,19 @@ async function main(){
   const swung = Math.abs(winProb - lastNotifiedWinProb) >= SWING_THRESHOLD;
 
   if(gameStarted){
-    const text = `Game started - PIT vs ${oppAbbr}.`;
-    await sendPush({ title: 'The Hoist-O-Meter', body: text });
+    await sendPush({ title: 'Game Started ⚾', body: `PIT vs ${oppAbbr}` });
   }
 
   if(scoreChanged){
-    const text = `Score update: PIT ${pitScore}, ${oppAbbr} ${oppScore} (${half} ${inning}). Win probability: ${winProb}%.`;
-    await sendPush({ title: 'The Hoist-O-Meter', body: text });
+    const title = `PIT ${pitScore} - ${oppAbbr} ${oppScore}`;
+    const text = `${half} ${inning} · Win probability: ${winProb}%`;
+    await sendPush({ title, body: text });
   }
 
   if(swung){
-    const text = `Win probability swing! Now ${winProb}% - PIT ${pitScore}-${oppScore} vs ${oppAbbr}.`;
-    await sendPush({ title: 'The Hoist-O-Meter', body: text });
+    const title = 'Win Probability Swing \u{1F4C8}';
+    const text = `Now ${winProb}% · PIT ${pitScore}, ${oppAbbr} ${oppScore}`;
+    await sendPush({ title, body: text });
   }
 
   saveState({
