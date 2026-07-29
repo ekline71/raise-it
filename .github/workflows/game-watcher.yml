@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+    inputs:
+      test_message:
+        description: 'Send a one-off test push with this message instead of watching the game'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -26,6 +31,7 @@ jobs:
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          TEST_MESSAGE: ${{ github.event.inputs.test_message }}
         run: node watch-game.js
       - name: Commit updated state
         run: |
