@@ -247,11 +247,11 @@
     <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>
   </svg>
 </button>
-<button class="x-post-btn" id="xPostBtn" aria-label="Post to X">
+<a class="x-post-btn" id="xPostBtn" href="https://x.com/hoistometer?s=11&amp;t=bN0kDWM-IiRAzykBou65bQ" target="_blank" rel="noopener noreferrer" aria-label="Visit our X account">
   <svg viewBox="0 0 24 24" fill="#FFC72C">
     <path d="M18.24 2h3.3l-7.2 8.23L22.8 22h-6.63l-5.19-6.79L4.99 22H1.68l7.7-8.8L1 2h6.8l4.69 6.2zM17.05 20h1.83L7.03 3.9H5.06z"/>
   </svg>
-</button>
+</a>
 <div class="share-toast" id="shareToast"></div>
 <div class="wrap">
   <h1>The Hoist-O-Meter</h1>
@@ -1105,11 +1105,6 @@ function buildXPostText(){
   }
   return `${caption}\n${SITE_LINK}`;
 }
-document.getElementById('xPostBtn').addEventListener('click', () => {
-  const text = buildXPostText();
-  const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-  window.open(intentUrl, '_blank', 'noopener,noreferrer');
-});
 </script>
 </body>
 </html>
