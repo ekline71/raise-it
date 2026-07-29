@@ -133,18 +133,24 @@ async function sendPush(payload){
     console.log('No PUSH_SUBSCRIPTION configured, skipping send:', payload.body);
     return;
   }
-  let sub;
-  try{ sub = JSON.parse(PUSH_SUBSCRIPTION); }catch{
+  let subs;
+  try{
+    const parsed = JSON.parse(PUSH_SUBSCRIPTION);
+    subs = Array.isArray(parsed) ? parsed : [parsed];
+  }catch{
     console.error('PUSH_SUBSCRIPTION secret is not valid JSON');
     return;
   }
-  try{
-    await webpush.sendNotification(sub, JSON.stringify(payload));
-  }catch(err){
-    if(err.statusCode === 404 || err.statusCode === 410){
-      console.error('Subscription expired - re-subscribe on the site and update the PUSH_SUBSCRIPTION secret.');
-    }else{
-      console.error('Push failed:', err.statusCode, err.body);
+
+  for(const sub of subs){
+    try{
+      await webpush.sendNotification(sub, JSON.stringify(payload));
+    }catch(err){
+      if(err.statusCode === 404 || err.statusCode === 410){
+        console.error(`Subscription expired (endpoint: ${sub.endpoint}) - remove it from PUSH_SUBSCRIPTION or have that person re-subscribe.`);
+      }else{
+        console.error('Push failed for', sub.endpoint, err.statusCode, err.body);
+      }
     }
   }
 }
