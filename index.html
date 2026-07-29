@@ -6,6 +6,8 @@
 <title>The Hoist-O-Meter</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
 <style>
   html,body{
     margin:0; padding:0; height:100%;
@@ -167,7 +169,7 @@
     text-transform:uppercase;
   }
   #haterNeedle{ transition:transform 0.6s ease; transform-origin:160px 160px; }
-  .refresh-btn, .share-btn, .x-post-btn{
+  .refresh-btn, .share-btn, .x-post-btn, .notify-btn{
     position:fixed;
     right:12px;
     width:38px;
@@ -185,13 +187,16 @@
   .refresh-btn{ top:calc(env(safe-area-inset-top, 0px) + 12px); }
   .share-btn{ top:calc(env(safe-area-inset-top, 0px) + 60px); }
   .x-post-btn{ top:calc(env(safe-area-inset-top, 0px) + 108px); }
-  .refresh-btn:active, .share-btn:active, .x-post-btn:active{ opacity:0.7; }
-  .refresh-btn svg, .share-btn svg, .x-post-btn svg{ width:18px; height:18px; }
+  .notify-btn{ top:calc(env(safe-area-inset-top, 0px) + 156px); }
+  .refresh-btn:active, .share-btn:active, .x-post-btn:active, .notify-btn:active{ opacity:0.7; }
+  .refresh-btn svg, .share-btn svg, .x-post-btn svg, .notify-btn svg{ width:18px; height:18px; }
+  .notify-btn.subscribed{ border-color:#FFC72C; }
+  .notify-btn.subscribed svg{ fill:#FFC72C; }
   .refresh-btn.spinning svg{ animation:refresh-spin 0.6s linear; }
   @keyframes refresh-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
   .share-toast{
     position:fixed;
-    top:calc(env(safe-area-inset-top, 0px) + 152px);
+    top:calc(env(safe-area-inset-top, 0px) + 204px);
     right:12px;
     font-size:11px;
     color:#8a6a1c;
@@ -205,6 +210,60 @@
     z-index:10;
   }
   .share-toast.show{ opacity:1; }
+  .sub-modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.8);
+    z-index:20;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .sub-modal.show{ display:flex; }
+  .sub-modal-card{
+    width:100%;
+    max-width:360px;
+    background:rgba(22,22,22,0.98);
+    border:1px solid #2e2e2e;
+    border-radius:12px;
+    padding:16px;
+  }
+  .sub-modal-title{
+    font-size:13px;
+    font-weight:700;
+    color:#FFC72C;
+    margin-bottom:10px;
+  }
+  #subModalText{
+    width:100%;
+    height:120px;
+    resize:none;
+    background:#000;
+    color:#ccc;
+    border:1px solid #2e2e2e;
+    border-radius:8px;
+    padding:8px;
+    font-size:10px;
+    font-family:monospace;
+    box-sizing:border-box;
+  }
+  .sub-modal-btns{
+    display:flex;
+    gap:10px;
+    margin-top:12px;
+  }
+  .sub-modal-btns button{
+    flex:1;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+  }
+  #subModalCopy{ background:#FFC72C; color:#000; }
+  #subModalClose{ background:#2e2e2e; color:#fff; }
   .donate-btn{
     display:inline-block;
     margin-top:24px;
@@ -252,7 +311,23 @@
     <path d="M18.24 2h3.3l-7.2 8.23L22.8 22h-6.63l-5.19-6.79L4.99 22H1.68l7.7-8.8L1 2h6.8l4.69 6.2zM17.05 20h1.83L7.03 3.9H5.06z"/>
   </svg>
 </a>
+<button class="notify-btn" id="notifyBtn" aria-label="Enable notifications">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#FFC72C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+  </svg>
+</button>
 <div class="share-toast" id="shareToast"></div>
+<div class="sub-modal" id="subModal">
+  <div class="sub-modal-card">
+    <div class="sub-modal-title">Copy this to your PUSH_SUBSCRIPTION GitHub secret</div>
+    <textarea id="subModalText" readonly></textarea>
+    <div class="sub-modal-btns">
+      <button id="subModalCopy">Copy</button>
+      <button id="subModalClose">Close</button>
+    </div>
+  </div>
+</div>
 <div class="wrap">
   <h1>The Hoist-O-Meter</h1>
   <div class="sub">Pirates win probability, live</div>
@@ -1104,6 +1179,82 @@ function buildXPostText(){
 
   return `${header}\n\n${awayAbbr}: ${awayScore}\n${homeAbbr}: ${homeScore}\n\nWin Probability: ${pct}%\n\n${SITE_LINK}`;
 }
+
+// ---- push notifications ----
+const VAPID_PUBLIC_KEY = 'BP1doqNg5qCmCf_nqhLPSVY5PgHxo2QpQuvmnAaFO3ZO7pGtMtDyWdMdcdF7lH1SbCQW9jERDWnvebZKY9QbWdY';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+const notifyBtn = document.getElementById('notifyBtn');
+
+async function refreshNotifyBtnState(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  notifyBtn.classList.toggle('subscribed', !!sub);
+}
+
+async function enableNotifications(){
+  const permission = await Notification.requestPermission();
+  if(permission !== 'granted'){
+    showShareToast('Notifications blocked');
+    return;
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+  });
+  showSubscriptionModal(sub);
+  refreshNotifyBtnState();
+}
+
+async function disableNotifications(){
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if(sub) await sub.unsubscribe();
+  showShareToast('Notifications disabled on this device');
+  refreshNotifyBtnState();
+}
+
+function showSubscriptionModal(sub){
+  const text = JSON.stringify(sub);
+  document.getElementById('subModalText').value = text;
+  document.getElementById('subModal').classList.add('show');
+}
+
+if('serviceWorker' in navigator && 'PushManager' in window){
+  navigator.serviceWorker.register('/sw.js').then(() => refreshNotifyBtnState());
+  notifyBtn.addEventListener('click', async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if(sub){
+      await disableNotifications();
+    }else{
+      await enableNotifications();
+    }
+  });
+}else{
+  notifyBtn.addEventListener('click', () => showShareToast('Not supported on this browser'));
+}
+
+document.getElementById('subModalClose').addEventListener('click', () => {
+  document.getElementById('subModal').classList.remove('show');
+});
+document.getElementById('subModalCopy').addEventListener('click', async () => {
+  const text = document.getElementById('subModalText').value;
+  try{
+    await navigator.clipboard.writeText(text);
+    showShareToast('Copied to clipboard');
+  }catch{
+    showShareToast('Copy failed - select the text manually');
+  }
+});
 </script>
 </body>
 </html>
