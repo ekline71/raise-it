@@ -170,7 +170,7 @@
   }
   #haterNeedle{ transition:transform 0.6s ease; transform-origin:160px 160px; }
   .refresh-btn, .share-btn, .x-post-btn, .notify-btn{
-    position:fixed;
+    position:absolute;
     right:12px;
     width:38px;
     height:38px;
@@ -195,7 +195,7 @@
   .refresh-btn.spinning svg{ animation:refresh-spin 0.6s linear; }
   @keyframes refresh-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
   .share-toast{
-    position:fixed;
+    position:absolute;
     top:calc(env(safe-area-inset-top, 0px) + 204px);
     right:12px;
     font-size:11px;
