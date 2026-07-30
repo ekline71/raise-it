@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   watch:
@@ -29,6 +30,7 @@ jobs:
         working-directory: scripts
         run: npm install
       - name: Watch game
+        id: watch
         working-directory: scripts
         env:
           PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
@@ -45,3 +47,11 @@ jobs:
           git add scripts/state.json
           git diff --cached --quiet || git commit -m "Update game watcher state [skip ci]"
           git push
+      - name: Wait before next check
+        if: steps.watch.outputs.continue == 'true'
+        run: sleep 60
+      - name: Chain next check
+        if: steps.watch.outputs.continue == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run game-watcher.yml --ref main

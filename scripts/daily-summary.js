@@ -1,9 +1,17 @@
+const fs = require('fs');
 const { TEAM_ID, getAbbr, sendPush, fetchTodayGame } = require('./lib');
+
+function setHasGame(hasGame){
+  if(process.env.GITHUB_OUTPUT){
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `hasGame=${hasGame}\n`);
+  }
+}
 
 async function main(){
   if(process.env.TEST_MESSAGE){
     await sendPush({ title: process.env.TEST_TITLE || "Today's Game", body: process.env.TEST_MESSAGE });
     console.log('Test notification sent.');
+    setHasGame(false);
     return;
   }
 
@@ -12,8 +20,11 @@ async function main(){
   if(!todayGame){
     await sendPush({ title: 'No Game Today', body: 'The Pirates are off today.' });
     console.log('No game today - sent off-day notification.');
+    setHasGame(false);
     return;
   }
+
+  setHasGame(true);
 
   const piratesHome = todayGame.teams.home.team.id === TEAM_ID;
   const oppTeam = piratesHome ? todayGame.teams.away : todayGame.teams.home;

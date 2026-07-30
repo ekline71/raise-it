@@ -14,6 +14,9 @@ on:
         required: false
         default: ''
 
+permissions:
+  actions: write
+
 jobs:
   summary:
     runs-on: ubuntu-latest
@@ -26,6 +29,7 @@ jobs:
         working-directory: scripts
         run: npm install
       - name: Send daily summary
+        id: summary
         working-directory: scripts
         env:
           PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
@@ -35,3 +39,8 @@ jobs:
           TEST_MESSAGE: ${{ github.event.inputs.test_message }}
           TEST_TITLE: ${{ github.event.inputs.test_title }}
         run: node daily-summary.js
+      - name: Kick off Game Watcher for today's game
+        if: steps.summary.outputs.hasGame == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run game-watcher.yml --ref main

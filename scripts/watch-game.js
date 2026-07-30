@@ -16,6 +16,12 @@ function saveState(state){
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2) + '\n');
 }
 
+function setContinue(shouldContinue){
+  if(process.env.GITHUB_OUTPUT){
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `continue=${shouldContinue}\n`);
+  }
+}
+
 function isFinalStatus(status){
   return status.includes('Final') || status === 'Game Over' || status === 'Completed Early';
 }
@@ -101,12 +107,14 @@ async function main(){
   if(process.env.TEST_MESSAGE){
     await sendPush({ title: process.env.TEST_TITLE || 'The Hoist-O-Meter', body: process.env.TEST_MESSAGE });
     console.log('Test notification sent.');
+    setContinue(false);
     return;
   }
 
   const todayGame = await fetchTodayGame();
   if(!todayGame){
     console.log('No game today.');
+    setContinue(false);
     return;
   }
 
@@ -133,11 +141,13 @@ async function main(){
       saveState({ ...prev, gamePk: todayGame.gamePk, finalNotified: true });
     }
     console.log('Game final, nothing more to watch.');
+    setContinue(false);
     return;
   }
 
   if(!isLive){
     console.log('Game not live yet.');
+    setContinue(true);
     return;
   }
 
@@ -193,9 +203,10 @@ async function main(){
   });
 
   console.log(`Checked: ${half} ${inning}, PIT ${pitScore}-${oppScore}, win% ${winProb}, gameStarted=${gameStarted}, scoreChanged=${scoreChanged}, swung=${swung}`);
+  setContinue(true);
 }
 
 main().catch((err) => {
   console.error(err);
-  process.exit(1);
+  setContinue(true);
 });
