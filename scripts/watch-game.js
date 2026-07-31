@@ -191,7 +191,7 @@ async function main(){
 
   if(swung){
     const trendEmoji = winProb > lastNotifiedWinProb ? '\u{1F4C8}' : '\u{1F4C9}';
-    const text = `Now ${winProb}% · PIT ${pitScore} - ${oppAbbr} ${oppScore}`;
+    const text = `Now ${winProb}% · PIT ${pitScore} - ${oppAbbr} ${oppScore} (${half} ${inning})`;
     await sendPush({ title: `Win Probability Swing ${trendEmoji}`, body: text });
   }
 
