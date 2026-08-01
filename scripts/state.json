@@ -3,7 +3,7 @@
   "started": true,
   "pitScore": 5,
   "oppScore": 5,
-  "winProb": 26,
-  "lastNotifiedWinProb": 28,
+  "winProb": 50,
+  "lastNotifiedWinProb": 50,
   "finalNotified": false
 }
