@@ -113,7 +113,7 @@
     flex-direction:column;
     justify-content:space-between;
     gap:2px;
-    height:56px;
+    height:68px;
   }
   .team-abbr{
     font-size:15px;
@@ -129,13 +129,29 @@
   .team-abbr.leading{ color:#FFC72C; }
   .readout{
     flex-shrink:0;
+    margin-left:auto;
+    display:flex;
+    flex-direction:row;
+    align-items:center;
+    gap:5px;
+  }
+  .readout-flag-col{
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:3px;
-    min-width:30px;
+    gap:5px;
+  }
+  .readout-pilot{
+    width:5px; height:5px;
+    border-radius:50%;
+    background:#2ecc71;
+    box-shadow:0 0 3px rgba(46,204,113,0.8);
   }
   .readout-flag{
+    background:#0a1f14;
+    border:1px solid #05170d;
+    border-radius:2px;
+    padding:2px 6px;
     font-family:'Courier New', ui-monospace, monospace;
     font-weight:700;
     font-size:10px;
@@ -143,49 +159,31 @@
     text-shadow:0 0 4px rgba(255,176,0,0.5);
     text-align:center;
     line-height:1.15;
-    max-width:56px;
+    min-width:16px;
   }
   .readout-flag.live{ animation:pulse 1.4s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
   .readout-scores{
     display:flex;
     flex-direction:column;
-    justify-content:space-between;
-    gap:2px;
-    height:56px;
+    gap:3px;
   }
   .score-digit{
+    background:#0a1f14;
+    border:1px solid #05170d;
+    border-radius:2px;
+    padding:2px 7px;
     font-family:'Courier New', ui-monospace, monospace;
     font-weight:700;
-    font-size:26px;
-    line-height:1;
+    font-size:22px;
+    line-height:1.2;
     color:#FFB000;
     text-shadow:0 0 6px rgba(255,176,0,0.55);
     min-width:1ch;
     text-align:center;
     font-variant-numeric:tabular-nums;
   }
-  .score-digit.dim{ color:#4a3a1c; text-shadow:none; }
-  .led-box{
-    flex-shrink:0;
-    margin-left:auto;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:6px;
-  }
-  .led-dot{
-    width:7px; height:7px;
-    border-radius:50%;
-    background:#2ecc71;
-    box-shadow:0 0 4px rgba(46,204,113,0.8);
-  }
-  .led-rect{
-    width:18px; height:38px;
-    background:#0a1f14;
-    border:1px solid #05170d;
-    border-radius:2px;
-  }
+  .score-digit.dim{ color:#3a2c14; text-shadow:none; }
   .footer-bar{
     display:flex;
     align-items:center;
@@ -226,15 +224,13 @@
     .cell{ padding:5px; gap:4px; min-height:auto; }
     .diamond-wrap{ width:46px; height:46px; }
     .diamond-wrap svg{ width:46px; height:46px; }
-    .teams{ height:36px; }
+    .teams{ height:48px; }
     .team-abbr{ font-size:10.5px; }
-    .readout{ min-width:20px; gap:2px; }
-    .readout-flag{ font-size:7.5px; max-width:34px; }
-    .readout-scores{ height:36px; }
-    .score-digit{ font-size:16px; }
-    .led-box{ gap:3px; }
-    .led-rect{ width:9px; height:22px; }
-    .led-dot{ width:5px; height:5px; }
+    .readout{ min-width:20px; gap:3px; }
+    .readout-pilot{ width:4px; height:4px; }
+    .readout-flag{ font-size:7.5px; max-width:34px; padding:1px 4px; min-width:12px; }
+    .readout-scores{ gap:2px; }
+    .score-digit{ font-size:14px; padding:1px 5px; }
   }
 </style>
 </head>
@@ -361,15 +357,14 @@ function renderCell(game){
       <span class="team-abbr ${homeLeading ? 'leading' : ''}">${homeAbbr}</span>
     </div>
     <div class="readout">
-      <div class="readout-flag ${flagClass}">${flag}</div>
+      <div class="readout-flag-col">
+        <div class="readout-pilot"></div>
+        <div class="readout-flag ${flagClass}">${flag}</div>
+      </div>
       <div class="readout-scores">
         <span class="score-digit ${hasScore ? '' : 'dim'}">${awayScore}</span>
         <span class="score-digit ${hasScore ? '' : 'dim'}">${homeScore}</span>
       </div>
-    </div>
-    <div class="led-box">
-      <div class="led-dot"></div>
-      <div class="led-rect"></div>
     </div>
   </div>`;
 }
