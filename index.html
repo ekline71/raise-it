@@ -204,7 +204,7 @@
     text-transform:uppercase;
   }
   #haterNeedle{ transition:transform 0.6s ease; transform-origin:160px 160px; }
-  .refresh-btn, .share-btn, .x-post-btn, .notify-btn{
+  .refresh-btn, .share-btn, .x-post-btn, .notify-btn, .scoreboard-btn{
     position:absolute;
     right:12px;
     width:38px;
@@ -223,8 +223,9 @@
   .share-btn{ top:calc(env(safe-area-inset-top, 0px) + 60px); }
   .x-post-btn{ top:calc(env(safe-area-inset-top, 0px) + 108px); }
   .notify-btn{ top:calc(env(safe-area-inset-top, 0px) + 156px); }
-  .refresh-btn:active, .share-btn:active, .x-post-btn:active, .notify-btn:active{ opacity:0.7; }
-  .refresh-btn svg, .share-btn svg, .x-post-btn svg, .notify-btn svg{ width:18px; height:18px; }
+  .scoreboard-btn{ top:calc(env(safe-area-inset-top, 0px) + 204px); }
+  .refresh-btn:active, .share-btn:active, .x-post-btn:active, .notify-btn:active, .scoreboard-btn:active{ opacity:0.7; }
+  .refresh-btn svg, .share-btn svg, .x-post-btn svg, .notify-btn svg, .scoreboard-btn svg{ width:18px; height:18px; }
   .notify-btn.subscribed{ border-color:#FFC72C; }
   .notify-btn.subscribed svg{ fill:#FFC72C; }
   .refresh-btn.spinning svg{ animation:refresh-spin 0.6s linear; }
@@ -352,6 +353,13 @@
     <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
   </svg>
 </button>
+<a class="scoreboard-btn" href="scoreboard.html" aria-label="View all MLB scores">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#FFC72C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <path d="M3 9h18"/>
+    <path d="M9 21V9"/>
+  </svg>
+</a>
 <div class="share-toast" id="shareToast"></div>
 <div class="sub-modal" id="subModal">
   <div class="sub-modal-card">
