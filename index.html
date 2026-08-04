@@ -117,27 +117,17 @@
     text-transform:uppercase;
     margin-bottom:4px;
   }
-  .matchup-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:4px 0;
+  .matchup-line{
+    padding:3px 0;
     font-size:14px;
-    border-bottom:1px solid #2e2e2e;
   }
-  .matchup-row:last-child{ border-bottom:none; }
-  .matchup-label{
-    color:#666;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:0.05em;
-    flex-shrink:0;
+  .matchup-tag{
+    color:#888;
+    font-weight:600;
   }
   .matchup-name{
-    color:#fff;
-    font-weight:600;
-    text-align:right;
-    margin-left:10px;
+    color:#FFC72C;
+    font-weight:700;
   }
   .matchup-count-value{
     color:#FFC72C;
@@ -379,18 +369,9 @@
   <div id="stage"><canvas id="canvas"></canvas></div>
   <div class="matchup-wrap" id="matchupWrap">
     <div class="matchup-title">At Bat</div>
-    <div class="matchup-row">
-      <span class="matchup-label">Count</span>
-      <span class="matchup-count-value" id="matchupCount"></span>
-    </div>
-    <div class="matchup-row">
-      <span class="matchup-label">Pitching</span>
-      <span class="matchup-name" id="matchupPitcher"></span>
-    </div>
-    <div class="matchup-row">
-      <span class="matchup-label">Batting</span>
-      <span class="matchup-name" id="matchupBatter"></span>
-    </div>
+    <div class="matchup-line"><span class="matchup-tag">P:</span> <span class="matchup-name" id="matchupPitcher"></span></div>
+    <div class="matchup-line"><span class="matchup-tag">AB:</span> <span class="matchup-name" id="matchupBatter"></span></div>
+    <div class="matchup-line"><span class="matchup-tag">Count:</span> <span class="matchup-count-value" id="matchupCount"></span></div>
   </div>
   <div class="updated" id="updated">LOADING&hellip;</div>
   <div class="season-wrap">
