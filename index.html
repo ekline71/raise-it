@@ -102,7 +102,7 @@
   .matchup-wrap{
     display:none;
     width:calc(min(94vw, 360px) * 336 / 360);
-    margin-top:-10px;
+    margin-top:6px;
     background:rgba(22,22,22,0.98);
     border:1px solid #2e2e2e;
     border-radius:10px;
@@ -125,6 +125,7 @@
     font-size:14px;
     border-bottom:1px solid #2e2e2e;
   }
+  .matchup-row:last-child{ border-bottom:none; }
   .matchup-label{
     color:#666;
     font-size:11px;
@@ -138,27 +139,11 @@
     text-align:right;
     margin-left:10px;
   }
-  .matchup-count-row{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding-top:6px;
-  }
   .matchup-count-value{
     color:#FFC72C;
     font-weight:700;
     font-variant-numeric:tabular-nums;
   }
-  .count-dots{ display:flex; gap:4px; }
-  .count-dot{
-    width:9px;
-    height:9px;
-    border-radius:50%;
-    background:#1a1a1a;
-    border:1.5px solid #444;
-  }
-  .count-dot.ball-filled{ background:#FFC72C; border-color:#FFC72C; }
-  .count-dot.strike-filled{ background:#FF3B30; border-color:#FF3B30; }
   .last5-wrap{
     width:min(94vw, 360px);
     margin-top:20px;
@@ -395,18 +380,16 @@
   <div class="matchup-wrap" id="matchupWrap">
     <div class="matchup-title">At Bat</div>
     <div class="matchup-row">
+      <span class="matchup-label">Count</span>
+      <span class="matchup-count-value" id="matchupCount"></span>
+    </div>
+    <div class="matchup-row">
       <span class="matchup-label">Pitching</span>
       <span class="matchup-name" id="matchupPitcher"></span>
     </div>
     <div class="matchup-row">
       <span class="matchup-label">Batting</span>
       <span class="matchup-name" id="matchupBatter"></span>
-    </div>
-    <div class="matchup-count-row">
-      <span class="matchup-label">Count</span>
-      <span class="matchup-count-value" id="matchupCount"></span>
-      <div class="count-dots" id="ballDots"></div>
-      <div class="count-dots" id="strikeDots"></div>
     </div>
   </div>
   <div class="updated" id="updated">LOADING&hellip;</div>
@@ -1027,16 +1010,6 @@ function renderMatchup(isLive, liveLS){
   document.getElementById('matchupPitcher').textContent = pitcherName;
   document.getElementById('matchupBatter').textContent = batterName;
   document.getElementById('matchupCount').textContent = `${balls}-${strikes}`;
-
-  const ballDots = document.getElementById('ballDots');
-  ballDots.innerHTML = Array.from({ length: 3 }, (_, i) =>
-    `<div class="count-dot ${i < balls ? 'ball-filled' : ''}"></div>`
-  ).join('');
-
-  const strikeDots = document.getElementById('strikeDots');
-  strikeDots.innerHTML = Array.from({ length: 2 }, (_, i) =>
-    `<div class="count-dot ${i < strikes ? 'strike-filled' : ''}"></div>`
-  ).join('');
 
   wrap.classList.add('show');
 }
