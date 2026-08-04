@@ -1209,7 +1209,7 @@ async function run(){
   drawScorebug(canvasW, canvasH, todayGame, nextGame, liveLS, piratesLogo, gameStatus);
 
   document.getElementById('updated').textContent =
-    `UPDATED ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+    `UPDATED ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'})}`;
 
   latestState = { todayGame, gameStatus, pitScore, oppScore, winProb, piratesHome, liveLS };
 }
