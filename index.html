@@ -99,6 +99,66 @@
     text-transform:uppercase;
   }
   .season-playoff{ color:#FFC72C; font-weight:600; }
+  .matchup-wrap{
+    display:none;
+    width:min(94vw, 360px);
+    margin-top:16px;
+    background:rgba(22,22,22,0.98);
+    border:1px solid #2e2e2e;
+    border-radius:10px;
+    padding:12px 14px;
+    box-sizing:border-box;
+  }
+  .matchup-wrap.show{ display:block; }
+  .matchup-title{
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:#8a6a1c;
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .matchup-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:7px 0;
+    font-size:14px;
+    border-bottom:1px solid #2e2e2e;
+  }
+  .matchup-label{
+    color:#666;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    flex-shrink:0;
+  }
+  .matchup-name{
+    color:#fff;
+    font-weight:600;
+    text-align:right;
+    margin-left:10px;
+  }
+  .matchup-count-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding-top:10px;
+  }
+  .matchup-count-value{
+    color:#FFC72C;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .count-dots{ display:flex; gap:4px; }
+  .count-dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#1a1a1a;
+    border:1.5px solid #444;
+  }
+  .count-dot.ball-filled{ background:#FFC72C; border-color:#FFC72C; }
+  .count-dot.strike-filled{ background:#FF3B30; border-color:#FF3B30; }
   .last5-wrap{
     width:min(94vw, 360px);
     margin-top:20px;
@@ -333,6 +393,23 @@
   <div class="sub">Pirates win probability, live</div>
   <div id="stage"><canvas id="canvas"></canvas></div>
   <div class="updated" id="updated">LOADING&hellip;</div>
+  <div class="matchup-wrap" id="matchupWrap">
+    <div class="matchup-title">At Bat</div>
+    <div class="matchup-row">
+      <span class="matchup-label">Pitching</span>
+      <span class="matchup-name" id="matchupPitcher"></span>
+    </div>
+    <div class="matchup-row">
+      <span class="matchup-label">Batting</span>
+      <span class="matchup-name" id="matchupBatter"></span>
+    </div>
+    <div class="matchup-count-row">
+      <span class="matchup-label">Count</span>
+      <span class="matchup-count-value" id="matchupCount"></span>
+      <div class="count-dots" id="ballDots"></div>
+      <div class="count-dots" id="strikeDots"></div>
+    </div>
+  </div>
   <div class="season-wrap">
     <div class="season-row" id="seasonRow"></div>
     <div class="season-bar-track"><div class="season-bar-fill" id="seasonBarFill"></div></div>
@@ -445,7 +522,12 @@ async function fetchLiveFeed(gamePk){
     const url = `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`;
     const res = await fetch(url);
     const data = await res.json();
-    return data?.liveData?.linescore ?? null;
+    const linescore = data?.liveData?.linescore ?? null;
+    if(linescore){
+      linescore.currentPlayMatchup = data?.liveData?.plays?.currentPlay?.matchup ?? null;
+      linescore.currentPlayCount = data?.liveData?.plays?.currentPlay?.count ?? null;
+    }
+    return linescore;
   }catch{ return null; }
 }
 async function fetchNextGame(){
@@ -928,6 +1010,37 @@ function renderSeasonInfo(info){
   fillEl.style.width = `${pct ?? 0}%`;
 }
 
+function renderMatchup(isLive, liveLS){
+  const wrap = document.getElementById('matchupWrap');
+  const matchup = liveLS?.currentPlayMatchup;
+  const pitcherName = matchup?.pitcher?.fullName;
+  const batterName = matchup?.batter?.fullName;
+
+  if(!isLive || !pitcherName || !batterName){
+    wrap.classList.remove('show');
+    return;
+  }
+
+  const balls = liveLS?.currentPlayCount?.balls ?? liveLS?.balls ?? 0;
+  const strikes = liveLS?.currentPlayCount?.strikes ?? liveLS?.strikes ?? 0;
+
+  document.getElementById('matchupPitcher').textContent = pitcherName;
+  document.getElementById('matchupBatter').textContent = batterName;
+  document.getElementById('matchupCount').textContent = `${balls}-${strikes}`;
+
+  const ballDots = document.getElementById('ballDots');
+  ballDots.innerHTML = Array.from({ length: 3 }, (_, i) =>
+    `<div class="count-dot ${i < balls ? 'ball-filled' : ''}"></div>`
+  ).join('');
+
+  const strikeDots = document.getElementById('strikeDots');
+  strikeDots.innerHTML = Array.from({ length: 2 }, (_, i) =>
+    `<div class="count-dot ${i < strikes ? 'strike-filled' : ''}"></div>`
+  ).join('');
+
+  wrap.classList.add('show');
+}
+
 const HATER_LEVELS = [58, 68, 78, 86, 92, 97];
 function renderHaterMeter(streak){
   const needleEl = document.getElementById('haterNeedle');
@@ -1038,6 +1151,7 @@ async function run(){
   renderLast5(recentGames.slice(0, 5));
   renderSeasonInfo(seasonInfo);
   renderHaterMeter(computeStreak(recentGames));
+  renderMatchup(gameStatus === "live", liveLS);
 
   // ---- render ----
   ctx.clearRect(0,0,canvasW,canvasH);
