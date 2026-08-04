@@ -90,7 +90,6 @@
     background:#0b3d2e;
     border:2px solid #0b3d2e;
   }
-  @media (max-width:440px){ .grid{ grid-template-columns:1fr; } .league-num{ display:none; } }
   .cell{
     background:#175a43;
     padding:10px 10px;
@@ -98,6 +97,7 @@
     align-items:center;
     gap:8px;
     min-height:96px;
+    min-width:0;
   }
   .diamond-wrap{
     position:relative;
@@ -217,6 +217,25 @@
     color:#9fd4bd;
     font-size:13px;
   }
+  @media (max-width:600px){
+    .league-num{ display:none; }
+    .board-outer{ padding:0 5px; }
+    .board{ padding:6px; }
+    .league-bar{ padding:5px 4px; gap:6px; }
+    .league-title{ font-size:13px; }
+    .cell{ padding:5px; gap:4px; min-height:auto; }
+    .diamond-wrap{ width:46px; height:46px; }
+    .diamond-wrap svg{ width:46px; height:46px; }
+    .teams{ height:36px; }
+    .team-abbr{ font-size:10.5px; }
+    .readout{ min-width:20px; gap:2px; }
+    .readout-flag{ font-size:7.5px; max-width:34px; }
+    .readout-scores{ height:36px; }
+    .score-digit{ font-size:16px; }
+    .led-box{ gap:3px; }
+    .led-rect{ width:9px; height:22px; }
+    .led-dot{ width:5px; height:5px; }
+  }
 </style>
 </head>
 <body>
@@ -321,7 +340,7 @@ function renderCell(game){
   }else if(isFinal){
     flag = (ls.currentInning && ls.currentInning !== 9) ? `F/${ls.currentInning}` : "F";
   }else if(isLive){
-    const half = ls.inningState === "Bottom" || ls.inningHalf === "Bottom" ? "▼" : "▲";
+    const half = ls.inningState === "Bottom" || ls.inningHalf === "Bottom" ? "B" : "T";
     flag = `${half}${ls.currentInning ?? ""}`;
     flagClass = "live";
   }else if(isPreview){
