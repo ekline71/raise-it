@@ -101,7 +101,7 @@
   .season-playoff{ color:#FFC72C; font-weight:600; }
   .matchup-wrap{
     display:none;
-    width:min(94vw, 360px);
+    width:calc(min(94vw, 360px) * 336 / 360);
     margin-top:12px;
     background:rgba(22,22,22,0.98);
     border:1px solid #2e2e2e;
@@ -392,7 +392,6 @@
   <h1>The Hoist-O-Meter</h1>
   <div class="sub">Pirates win probability, live</div>
   <div id="stage"><canvas id="canvas"></canvas></div>
-  <div class="updated" id="updated">LOADING&hellip;</div>
   <div class="matchup-wrap" id="matchupWrap">
     <div class="matchup-title">At Bat</div>
     <div class="matchup-row">
@@ -410,6 +409,7 @@
       <div class="count-dots" id="strikeDots"></div>
     </div>
   </div>
+  <div class="updated" id="updated">LOADING&hellip;</div>
   <div class="season-wrap">
     <div class="season-row" id="seasonRow"></div>
     <div class="season-bar-track"><div class="season-bar-fill" id="seasonBarFill"></div></div>
