@@ -93,10 +93,10 @@
   @media (max-width:440px){ .grid{ grid-template-columns:1fr; } .league-num{ display:none; } }
   .cell{
     background:#175a43;
-    padding:10px 12px;
+    padding:10px 10px;
     display:flex;
     align-items:center;
-    gap:10px;
+    gap:8px;
     min-height:96px;
   }
   .diamond-wrap{
@@ -107,17 +107,13 @@
   }
   .diamond-wrap svg{ width:74px; height:74px; }
   .teams{
-    flex:1;
+    flex-shrink:0;
     min-width:0;
     display:flex;
     flex-direction:column;
-    gap:3px;
-  }
-  .team-row{
-    display:flex;
-    align-items:baseline;
     justify-content:space-between;
-    gap:6px;
+    gap:2px;
+    height:56px;
   }
   .team-abbr{
     font-size:15px;
@@ -128,45 +124,68 @@
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+    line-height:1.2;
   }
   .team-abbr.leading{ color:#FFC72C; }
-  .team-score{
-    font-family:'Courier New', ui-monospace, monospace;
-    font-weight:700;
-    font-size:20px;
-    color:#FFB000;
-    text-shadow:0 0 6px rgba(255,176,0,0.55);
-    min-width:1.1em;
-    text-align:right;
-    font-variant-numeric:tabular-nums;
-  }
-  .status-col{
+  .readout{
     flex-shrink:0;
-    width:40px;
     display:flex;
     flex-direction:column;
     align-items:center;
-    justify-content:center;
-    gap:2px;
+    gap:3px;
+    min-width:30px;
   }
-  .status-main{
+  .readout-flag{
     font-family:'Courier New', ui-monospace, monospace;
     font-weight:700;
-    font-size:14px;
+    font-size:10px;
     color:#FFB000;
-    text-shadow:0 0 5px rgba(255,176,0,0.5);
+    text-shadow:0 0 4px rgba(255,176,0,0.5);
     text-align:center;
-    line-height:1.1;
+    line-height:1.15;
+    max-width:56px;
   }
-  .status-sub{
-    font-size:9px;
-    color:#9fd4bd;
-    letter-spacing:0.05em;
-    text-transform:uppercase;
-    text-align:center;
-  }
-  .status-live .status-main{ animation:pulse 1.4s ease-in-out infinite; }
+  .readout-flag.live{ animation:pulse 1.4s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
+  .readout-scores{
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:2px;
+    height:56px;
+  }
+  .score-digit{
+    font-family:'Courier New', ui-monospace, monospace;
+    font-weight:700;
+    font-size:26px;
+    line-height:1;
+    color:#FFB000;
+    text-shadow:0 0 6px rgba(255,176,0,0.55);
+    min-width:1ch;
+    text-align:center;
+    font-variant-numeric:tabular-nums;
+  }
+  .score-digit.dim{ color:#4a3a1c; text-shadow:none; }
+  .led-box{
+    flex-shrink:0;
+    margin-left:auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+  }
+  .led-dot{
+    width:7px; height:7px;
+    border-radius:50%;
+    background:#2ecc71;
+    box-shadow:0 0 4px rgba(46,204,113,0.8);
+  }
+  .led-rect{
+    width:18px; height:38px;
+    background:#0a1f14;
+    border:1px solid #05170d;
+    border-radius:2px;
+  }
   .footer-bar{
     display:flex;
     align-items:center;
@@ -269,10 +288,11 @@ async function fetchGames(){
   }
 }
 
-function formatStartTime(iso){
-  return new Date(iso).toLocaleTimeString("en-US", {
+function formatStartTimeShort(iso){
+  const full = new Date(iso).toLocaleTimeString("en-US", {
     hour:"numeric", minute:"2-digit", hour12:true, timeZone:"America/New_York",
   });
+  return full.replace(" AM", "a").replace(" PM", "p");
 }
 
 function renderCell(game){
@@ -287,31 +307,25 @@ function renderCell(game){
   const isFinal = state === "Final";
   const isPreview = state === "Preview";
 
-  const awayScore = isPreview ? "" : String(away.score ?? 0);
-  const homeScore = isPreview ? "" : String(home.score ?? 0);
-  const awayLeading = !isPreview && (away.score ?? 0) > (home.score ?? 0);
-  const homeLeading = !isPreview && (home.score ?? 0) > (away.score ?? 0);
+  const hasScore = !isPreview;
+  const awayScore = hasScore ? String(away.score ?? 0) : "–";
+  const homeScore = hasScore ? String(home.score ?? 0) : "–";
+  const awayLeading = hasScore && (away.score ?? 0) > (home.score ?? 0);
+  const homeLeading = hasScore && (home.score ?? 0) > (away.score ?? 0);
 
   const irregular = /postponed|suspended|delayed|cancelled/i.test(detail || "");
 
-  let statusMain, statusSub, statusClass = "";
+  let flag = "", flagClass = "";
   if(irregular){
-    statusMain = (detail || "").split(" ")[0].toUpperCase().slice(0,4);
-    statusSub = isPreview ? "" : "IN PROGRESS";
+    flag = (detail || "").toUpperCase().slice(0,9);
   }else if(isFinal){
-    statusMain = (ls.currentInning && ls.currentInning !== 9) ? `F/${ls.currentInning}` : "F";
-    statusSub = "FINAL";
+    flag = (ls.currentInning && ls.currentInning !== 9) ? `F/${ls.currentInning}` : "F";
   }else if(isLive){
     const half = ls.inningState === "Bottom" || ls.inningHalf === "Bottom" ? "▼" : "▲";
-    statusMain = `${half}${ls.currentInning ?? ""}`;
-    statusSub = `${ls.outs ?? 0} OUT`;
-    statusClass = "status-live";
+    flag = `${half}${ls.currentInning ?? ""}`;
+    flagClass = "live";
   }else if(isPreview){
-    statusMain = formatStartTime(game.gameDate);
-    statusSub = "ET";
-  }else{
-    statusMain = (detail || "").split(" ")[0].toUpperCase().slice(0,5) || "—";
-    statusSub = "";
+    flag = formatStartTimeShort(game.gameDate);
   }
 
   const outs = ls.outs ?? 0;
@@ -324,18 +338,19 @@ function renderCell(game){
       ${diamondSvg(showRunners && !!offense.first, showRunners && !!offense.second, showRunners && !!offense.third, showRunners ? outs : 0)}
     </div>
     <div class="teams">
-      <div class="team-row">
-        <span class="team-abbr ${awayLeading ? 'leading' : ''}">${awayAbbr}</span>
-        <span class="team-score">${awayScore}</span>
-      </div>
-      <div class="team-row">
-        <span class="team-abbr ${homeLeading ? 'leading' : ''}">${homeAbbr}</span>
-        <span class="team-score">${homeScore}</span>
+      <span class="team-abbr ${awayLeading ? 'leading' : ''}">${awayAbbr}</span>
+      <span class="team-abbr ${homeLeading ? 'leading' : ''}">${homeAbbr}</span>
+    </div>
+    <div class="readout">
+      <div class="readout-flag ${flagClass}">${flag}</div>
+      <div class="readout-scores">
+        <span class="score-digit ${hasScore ? '' : 'dim'}">${awayScore}</span>
+        <span class="score-digit ${hasScore ? '' : 'dim'}">${homeScore}</span>
       </div>
     </div>
-    <div class="status-col ${statusClass}">
-      <div class="status-main">${statusMain}</div>
-      <div class="status-sub">${statusSub}</div>
+    <div class="led-box">
+      <div class="led-dot"></div>
+      <div class="led-rect"></div>
     </div>
   </div>`;
 }
