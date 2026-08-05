@@ -131,7 +131,6 @@
     white-space:nowrap;
     line-height:1;
   }
-  .team-abbr.leading{ color:#FFC72C; }
   .readout{
     flex-shrink:0;
     margin-left:auto;
@@ -169,8 +168,6 @@
     line-height:1.15;
     min-width:20px;
   }
-  .readout-flag.live{ animation:pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
   .readout-scores{
     display:flex;
     flex-direction:column;
@@ -337,12 +334,10 @@ function renderCell(game){
   const hasScore = !isPreview;
   const awayScore = hasScore ? String(away.score ?? 0) : "–";
   const homeScore = hasScore ? String(home.score ?? 0) : "–";
-  const awayLeading = hasScore && (away.score ?? 0) > (home.score ?? 0);
-  const homeLeading = hasScore && (home.score ?? 0) > (away.score ?? 0);
 
   const irregular = /postponed|suspended|delayed|cancelled/i.test(detail || "");
 
-  let flag = "", flagClass = "", topLit = false, bottomLit = false;
+  let flag = "", topLit = false, bottomLit = false;
   if(irregular){
     flag = (detail || "").toUpperCase().slice(0,9);
   }else if(isFinal){
@@ -350,7 +345,6 @@ function renderCell(game){
   }else if(isLive){
     const isBottom = ls.inningState === "Bottom" || ls.inningHalf === "Bottom";
     flag = String(ls.currentInning ?? "");
-    flagClass = "live";
     topLit = !isBottom;
     bottomLit = isBottom;
   }else if(isPreview){
@@ -367,13 +361,13 @@ function renderCell(game){
       ${diamondSvg(showRunners && !!offense.first, showRunners && !!offense.second, showRunners && !!offense.third, showRunners ? outs : 0)}
     </div>
     <div class="teams">
-      <span class="team-abbr ${awayLeading ? 'leading' : ''}">${awayAbbr}</span>
-      <span class="team-abbr ${homeLeading ? 'leading' : ''}">${homeAbbr}</span>
+      <span class="team-abbr">${awayAbbr}</span>
+      <span class="team-abbr">${homeAbbr}</span>
     </div>
     <div class="readout">
       <div class="readout-flag-col">
         <div class="readout-dot ${topLit ? 'lit' : ''}"></div>
-        <div class="readout-flag ${flagClass}">${flag}</div>
+        <div class="readout-flag">${flag}</div>
         <div class="readout-dot ${bottomLit ? 'lit' : ''}"></div>
       </div>
       <div class="readout-scores">
