@@ -160,7 +160,6 @@ async function main(){
   const outs = liveLS?.outs ?? 0;
 
   let winProb = null;
-  let winProbSource = 'fallback';
   try{
     const etDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).replace(/-/g, '');
     const eventId = await fetchEspnEventId(etDateStr);
@@ -169,16 +168,12 @@ async function main(){
       if(homeWinPct != null){
         const piratesPct = piratesHome ? homeWinPct : (1 - homeWinPct);
         winProb = Math.round(piratesPct * 100);
-        winProbSource = 'espn';
       }
     }
-  }catch(err){
-    console.log('ESPN win prob fetch failed:', err.message);
-  }
+  }catch{}
   if(winProb === null){
     winProb = calcWinProbability(pitScore, oppScore, inning, half, piratesHome, onFirst, onSecond, onThird, outs);
   }
-  console.log(`DEBUG source=${winProbSource} piratesHome=${piratesHome} inning=${inning} half=${half} outs=${outs} onFirst=${onFirst} onSecond=${onSecond} onThird=${onThird} pitScore=${pitScore} oppScore=${oppScore} winProb=${winProb}`);
 
   const gameStarted = !prev?.started;
   const scoreChanged = !!prev && (prev.pitScore !== pitScore || prev.oppScore !== oppScore);
