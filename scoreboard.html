@@ -116,7 +116,7 @@
     height:68px;
   }
   .team-abbr{
-    font-size:15px;
+    font-size:19px;
     font-weight:800;
     letter-spacing:0.03em;
     color:#fff;
@@ -141,9 +141,12 @@
     align-items:center;
     gap:5px;
   }
-  .readout-pilot{
+  .readout-dot{
     width:5px; height:5px;
     border-radius:50%;
+    background:#123d24;
+  }
+  .readout-dot.lit{
     background:#2ecc71;
     box-shadow:0 0 3px rgba(46,204,113,0.8);
   }
@@ -225,9 +228,9 @@
     .diamond-wrap{ width:46px; height:46px; }
     .diamond-wrap svg{ width:46px; height:46px; }
     .teams{ height:48px; }
-    .team-abbr{ font-size:10.5px; }
+    .team-abbr{ font-size:13px; }
     .readout{ min-width:20px; gap:3px; }
-    .readout-pilot{ width:4px; height:4px; }
+    .readout-dot{ width:4px; height:4px; }
     .readout-flag{ font-size:7.5px; max-width:34px; padding:1px 4px; min-width:12px; }
     .readout-scores{ gap:2px; }
     .score-digit{ font-size:14px; padding:1px 5px; }
@@ -330,15 +333,17 @@ function renderCell(game){
 
   const irregular = /postponed|suspended|delayed|cancelled/i.test(detail || "");
 
-  let flag = "", flagClass = "";
+  let flag = "", flagClass = "", topLit = false, bottomLit = false;
   if(irregular){
     flag = (detail || "").toUpperCase().slice(0,9);
   }else if(isFinal){
     flag = (ls.currentInning && ls.currentInning !== 9) ? `F/${ls.currentInning}` : "F";
   }else if(isLive){
-    const half = ls.inningState === "Bottom" || ls.inningHalf === "Bottom" ? "B" : "T";
-    flag = `${half}${ls.currentInning ?? ""}`;
+    const isBottom = ls.inningState === "Bottom" || ls.inningHalf === "Bottom";
+    flag = String(ls.currentInning ?? "");
     flagClass = "live";
+    topLit = !isBottom;
+    bottomLit = isBottom;
   }else if(isPreview){
     flag = formatStartTimeShort(game.gameDate);
   }
@@ -358,8 +363,9 @@ function renderCell(game){
     </div>
     <div class="readout">
       <div class="readout-flag-col">
-        <div class="readout-pilot"></div>
+        <div class="readout-dot ${topLit ? 'lit' : ''}"></div>
         <div class="readout-flag ${flagClass}">${flag}</div>
+        <div class="readout-dot ${bottomLit ? 'lit' : ''}"></div>
       </div>
       <div class="readout-scores">
         <span class="score-digit ${hasScore ? '' : 'dim'}">${awayScore}</span>
