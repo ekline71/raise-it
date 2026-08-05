@@ -170,6 +170,26 @@
     line-height:1.15;
     min-width:20px;
   }
+  .readout-time{
+    height:71px;
+    max-width:66px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#0a1f14;
+    border:1px solid #05170d;
+    border-radius:2px;
+    padding:2px 8px;
+    font-family:'Courier New', ui-monospace, monospace;
+    font-weight:700;
+    font-size:15px;
+    line-height:1.15;
+    color:#FFB000;
+    text-shadow:0 0 5px rgba(255,176,0,0.5);
+    text-align:center;
+    white-space:normal;
+    word-break:break-word;
+  }
   .readout-scores{
     display:flex;
     flex-direction:column;
@@ -194,7 +214,6 @@
     text-align:center;
     font-variant-numeric:tabular-nums;
   }
-  .score-digit.dim{ color:#3a2c14; text-shadow:none; }
   .footer-bar{
     display:flex;
     align-items:center;
@@ -240,6 +259,7 @@
     .readout{ min-width:20px; gap:3px; }
     .readout-dot{ width:6px; height:6px; }
     .readout-flag{ font-size:11px; max-width:38px; padding:2px 5px; min-width:16px; }
+    .readout-time{ height:50px; max-width:48px; font-size:11px; padding:2px 5px; }
     .readout-scores{ gap:2px; }
     .score-digit{ height:24px; font-size:14px; padding:0 5px; }
   }
@@ -334,8 +354,8 @@ function renderCell(game){
   const isPreview = state === "Preview";
 
   const hasScore = !isPreview;
-  const awayScore = hasScore ? String(away.score ?? 0) : "–";
-  const homeScore = hasScore ? String(home.score ?? 0) : "–";
+  const awayScore = String(away.score ?? 0);
+  const homeScore = String(home.score ?? 0);
 
   const irregular = /postponed|suspended|delayed|cancelled/i.test(detail || "");
 
@@ -367,15 +387,17 @@ function renderCell(game){
       <span class="team-abbr">${homeAbbr}</span>
     </div>
     <div class="readout">
+      ${hasScore ? `
       <div class="readout-flag-col">
         <div class="readout-dot ${topLit ? 'lit' : ''}"></div>
         <div class="readout-flag">${flag}</div>
         <div class="readout-dot ${bottomLit ? 'lit' : ''}"></div>
       </div>
       <div class="readout-scores">
-        <span class="score-digit ${hasScore ? '' : 'dim'}">${awayScore}</span>
-        <span class="score-digit ${hasScore ? '' : 'dim'}">${homeScore}</span>
-      </div>
+        <span class="score-digit">${awayScore}</span>
+        <span class="score-digit">${homeScore}</span>
+      </div>` : `
+      <div class="readout-time">${flag}</div>`}
     </div>
   </div>`;
 }
