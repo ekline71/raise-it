@@ -1016,7 +1016,6 @@ function renderMatchup(isLive, liveLS){
 
   const balls = liveLS?.currentPlayCount?.balls ?? liveLS?.balls ?? 0;
   const strikes = liveLS?.currentPlayCount?.strikes ?? liveLS?.strikes ?? 0;
-  const outs = liveLS?.currentPlayCount?.outs ?? liveLS?.outs ?? 0;
 
   document.getElementById('matchupPitcher').textContent = pitcherName;
   document.getElementById('matchupBatter').textContent = batterName;
@@ -1030,8 +1029,7 @@ function renderMatchup(isLive, liveLS){
   };
   document.getElementById('matchupDotsRow').innerHTML =
     dotsHtml('B', balls, 3, 'ball') +
-    dotsHtml('S', strikes, 2, 'strike') +
-    dotsHtml('O', outs, 2, 'out');
+    dotsHtml('S', strikes, 2, 'strike');
 
   wrap.classList.add('show');
 }
