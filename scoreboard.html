@@ -7,6 +7,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#0b3d2e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
 <style>
   *{ box-sizing:border-box; }
   html,body{
@@ -111,20 +114,22 @@
     min-width:0;
     display:flex;
     flex-direction:column;
-    justify-content:space-between;
-    gap:2px;
-    height:68px;
+    gap:3px;
   }
   .team-abbr{
+    height:34px;
+    display:flex;
+    align-items:center;
+    font-family:'Archivo Black', 'Arial Black', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size:19px;
-    font-weight:800;
-    letter-spacing:0.03em;
+    font-weight:400;
+    letter-spacing:0.02em;
     color:#fff;
     text-transform:uppercase;
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
-    line-height:1.2;
+    line-height:1;
   }
   .team-abbr.leading{ color:#FFC72C; }
   .readout{
@@ -172,14 +177,18 @@
     gap:3px;
   }
   .score-digit{
+    height:34px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     background:#0a1f14;
     border:1px solid #05170d;
     border-radius:2px;
-    padding:2px 7px;
+    padding:0 7px;
     font-family:'Courier New', ui-monospace, monospace;
     font-weight:700;
     font-size:22px;
-    line-height:1.2;
+    line-height:1;
     color:#FFB000;
     text-shadow:0 0 6px rgba(255,176,0,0.55);
     min-width:1ch;
@@ -227,13 +236,13 @@
     .cell{ padding:5px; gap:4px; min-height:auto; }
     .diamond-wrap{ width:46px; height:46px; }
     .diamond-wrap svg{ width:46px; height:46px; }
-    .teams{ height:48px; }
-    .team-abbr{ font-size:13px; }
+    .teams{ gap:2px; }
+    .team-abbr{ height:22px; font-size:13px; }
     .readout{ min-width:20px; gap:3px; }
     .readout-dot{ width:6px; height:6px; }
     .readout-flag{ font-size:11px; max-width:38px; padding:2px 5px; min-width:16px; }
     .readout-scores{ gap:2px; }
-    .score-digit{ font-size:14px; padding:1px 5px; }
+    .score-digit{ height:22px; font-size:14px; padding:0 5px; }
   }
 </style>
 </head>
