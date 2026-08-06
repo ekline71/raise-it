@@ -104,21 +104,9 @@ async function fetchEspnWinProb(eventId){
 }
 
 async function main(){
-  if(process.env.TEST_MESSAGE){
-    await sendPush({ title: process.env.TEST_TITLE || 'The Hoist-O-Meter', body: process.env.TEST_MESSAGE });
-    console.log('Test notification sent.');
-    setContinue(false);
-    return;
-  }
-
-  const todayGame = await fetchTodayGame();
-  if(!todayGame){
-    console.log('No game today.');
-    setContinue(false);
-    return;
-  }
-
-  if(process.env.DEBUG_PLAYS){
+  if(process.env.TEST_MESSAGE === 'DEBUG_PLAYS'){
+    const todayGame = await fetchTodayGame();
+    if(!todayGame){ console.log('No game today.'); setContinue(false); return; }
     const etDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).replace(/-/g, '');
     const eventId = await fetchEspnEventId(etDateStr);
     console.log('DEBUG eventId:', eventId);
@@ -130,6 +118,20 @@ async function main(){
       console.log('DEBUG plays.length:', plays.length);
       console.log('DEBUG last 3 plays:', JSON.stringify(plays.slice(-3), null, 2));
     }
+    setContinue(false);
+    return;
+  }
+
+  if(process.env.TEST_MESSAGE){
+    await sendPush({ title: process.env.TEST_TITLE || 'The Hoist-O-Meter', body: process.env.TEST_MESSAGE });
+    console.log('Test notification sent.');
+    setContinue(false);
+    return;
+  }
+
+  const todayGame = await fetchTodayGame();
+  if(!todayGame){
+    console.log('No game today.');
     setContinue(false);
     return;
   }
