@@ -118,6 +118,22 @@ async function main(){
     return;
   }
 
+  if(process.env.DEBUG_PLAYS){
+    const etDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).replace(/-/g, '');
+    const eventId = await fetchEspnEventId(etDateStr);
+    console.log('DEBUG eventId:', eventId);
+    if(eventId){
+      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${eventId}`);
+      const data = await res.json();
+      console.log('DEBUG top-level keys:', JSON.stringify(Object.keys(data)));
+      const plays = data.plays ?? [];
+      console.log('DEBUG plays.length:', plays.length);
+      console.log('DEBUG last 3 plays:', JSON.stringify(plays.slice(-3), null, 2));
+    }
+    setContinue(false);
+    return;
+  }
+
   const status = todayGame.status.detailedState;
   const piratesHome = todayGame.teams.home.team.id === TEAM_ID;
   const pitScore = piratesHome ? (todayGame.teams.home.score ?? 0) : (todayGame.teams.away.score ?? 0);
