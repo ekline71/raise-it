@@ -154,6 +154,40 @@
   .matchup-dot.on.ball{ background:#4CAF50; }
   .matchup-dot.on.strike{ background:#FFC72C; }
   .matchup-dot.on.out{ background:#e5533d; }
+  .pbp-wrap{
+    display:none;
+    width:calc(min(94vw, 360px) * 336 / 360);
+    margin-top:10px;
+    background:rgba(22,22,22,0.98);
+    border:1px solid #2e2e2e;
+    border-radius:10px;
+    padding:10px 14px;
+    box-sizing:border-box;
+  }
+  .pbp-wrap.show{ display:block; }
+  .pbp-title{
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:#8a6a1c;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .pbp-row{
+    display:flex;
+    gap:8px;
+    padding:5px 0;
+    font-size:12px;
+    line-height:1.4;
+    border-top:1px solid #2e2e2e;
+  }
+  .pbp-row:first-child{ border-top:none; }
+  .pbp-inning{
+    color:#888;
+    font-weight:600;
+    flex-shrink:0;
+    width:40px;
+  }
+  .pbp-text{ color:#ddd; }
   .last5-wrap{
     width:min(94vw, 360px);
     margin-top:20px;
@@ -402,6 +436,10 @@
     </div>
     <div class="matchup-dots-row" id="matchupDotsRow"></div>
   </div>
+  <div class="pbp-wrap" id="pbpWrap">
+    <div class="pbp-title">Play by Play</div>
+    <div id="pbpList"></div>
+  </div>
   <div class="updated" id="updated">LOADING&hellip;</div>
   <div class="season-wrap">
     <div class="season-row" id="seasonRow"></div>
@@ -594,6 +632,22 @@ async function fetchEspnWinProb(eventId){
     const lastData = await lastRes.json();
     return lastData.items?.[0]?.homeWinPercentage ?? null;
   }catch{ return null; }
+}
+async function fetchEspnPlays(eventId, count){
+  try{
+    const url = `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${eventId}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const rawPlays = data.plays ?? [];
+    return rawPlays.slice(-count).reverse().map(p => {
+      const text = p.text || p.shortText || p.type?.text || null;
+      const periodNum = p.period?.number ?? null;
+      const periodType = String(p.period?.type ?? '').toLowerCase();
+      const half = periodType.startsWith('bot') ? 'Bot' : periodType.startsWith('top') ? 'Top' : '';
+      const inningLabel = periodNum ? (half ? `${half} ${periodNum}` : `${periodNum}`) : null;
+      return { text, inningLabel };
+    }).filter(p => !!p.text);
+  }catch{ return []; }
 }
 
 // ---- RE24 win probability model (unchanged) ----
@@ -1034,6 +1088,24 @@ function renderMatchup(isLive, liveLS){
   wrap.classList.add('show');
 }
 
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+}
+
+function renderPlayByPlay(isLive, plays){
+  const wrap = document.getElementById('pbpWrap');
+  if(!isLive || !plays || !plays.length){
+    wrap.classList.remove('show');
+    return;
+  }
+  document.getElementById('pbpList').innerHTML = plays.map(p => `
+    <div class="pbp-row">
+      ${p.inningLabel ? `<span class="pbp-inning">${escapeHtml(p.inningLabel)}</span>` : ''}
+      <span class="pbp-text">${escapeHtml(p.text)}</span>
+    </div>`).join('');
+  wrap.classList.add('show');
+}
+
 const HATER_LEVELS = [58, 68, 78, 86, 92, 97];
 function renderHaterMeter(streak){
   const needleEl = document.getElementById('haterNeedle');
@@ -1069,6 +1141,7 @@ async function run(){
   let piratesHome = true;
   let liveLS = null;
   let pitScore = 0, oppScore = 0;
+  let plays = [];
 
   const cachedWin = loadWinState();
 
@@ -1109,6 +1182,10 @@ async function run(){
       }else{
         winProb = calcWinProbability(pitScore, oppScore, inning, half, piratesHome, onFirst, onSecond, onThird, outs);
       }
+
+      if(espnEventCache.eventId){
+        plays = await fetchEspnPlays(espnEventCache.eventId, 5);
+      }
     }else if(isFinalStatus(status)){
       const piratesWon = pitScore > oppScore;
       saveWinState(piratesWon, todayGame);
@@ -1145,6 +1222,7 @@ async function run(){
   renderSeasonInfo(seasonInfo);
   renderHaterMeter(computeStreak(recentGames));
   renderMatchup(gameStatus === "live", liveLS);
+  renderPlayByPlay(gameStatus === "live", plays);
 
   // ---- render ----
   ctx.clearRect(0,0,canvasW,canvasH);
