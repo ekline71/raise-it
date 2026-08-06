@@ -1028,8 +1028,8 @@ function renderMatchup(isLive, liveLS){
     return `<div class="matchup-dots-group"><span class="matchup-dots-label">${label}</span>${dots}</div>`;
   };
   document.getElementById('matchupDotsRow').innerHTML =
-    dotsHtml('B', balls, 3, 'ball') +
-    dotsHtml('S', strikes, 2, 'strike');
+    dotsHtml('B', balls, 4, 'ball') +
+    dotsHtml('S', strikes, 3, 'strike');
 
   wrap.classList.add('show');
 }
