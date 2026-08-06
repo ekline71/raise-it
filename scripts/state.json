@@ -2,8 +2,8 @@
   "gamePk": 823753,
   "started": true,
   "pitScore": 0,
-  "oppScore": 1,
-  "winProb": 20,
-  "lastNotifiedWinProb": 31,
+  "oppScore": 3,
+  "winProb": 11,
+  "lastNotifiedWinProb": 11,
   "finalNotified": false
 }
