@@ -1,4 +1,9 @@
 {
-  "gamePk": 823754,
-  "finalNotified": true
+  "gamePk": 823349,
+  "started": true,
+  "pitScore": 0,
+  "oppScore": 0,
+  "winProb": 49,
+  "lastNotifiedWinProb": 49,
+  "finalNotified": false
 }
